@@ -2,6 +2,8 @@ import express, { Request, Response } from "express";
 import { Server } from "socket.io";
 import * as rclnodejs from "rclnodejs";
 
+const fs = require('fs');
+
 const app = express();
 
 interface ServerToClientEvents {
@@ -38,29 +40,9 @@ io.on("connection", (socket) => {
     });
 });
 
+const index_page = fs.readFileSync("static/index.html", "utf-8");
 app.get("/", (req: Request, res: Response) => {
-    res.end(
-        `<!DOCTYPE html>
-        <html>
-        <body>
-            <h1>Socket.io Ping/Pong</h1>
-            <script type="module">
-                import { io } from "https://cdn.socket.io/4.8.1/socket.io.esm.min.js";
-
-                const socket = io("http://localhost:3001");
-
-                socket.emit("ping", "Ping!");
-                socket.on("pong", (message) => {
-                    console.log(message);
-                });
-
-                socket.on("message", (data) => {
-                    console.log(data);
-                    document.body.insertAdjacentHTML('beforeend', \`<p>\${data}</p>\`);
-                });
-            </script>
-        </body>`
-    )
+    res.end(index_page);
 });
 
 (async function () {
@@ -72,14 +54,54 @@ app.get("/", (req: Request, res: Response) => {
 
     io.listen(3001);
 
-    const node = new rclnodejs.Node("publisher_example_node");
-    const subscriber = node.createSubscription("std_msgs/msg/String", "test_topic", (msg) => {
-        // Somehow possible to be a buffer, asserting that it is not.
-        const as_std_string = msg as rclnodejs.std_msgs.msg.String;
-        console.log(`Received message: ${as_std_string.data}`);
+    const node = new rclnodejs.Node("umarv_dashboard_node");
 
-        io.emit("message", as_std_string.data);
+    app.post("/spinNode", (req: Request, res: Response) => {
+        if (node.spinning) {
+            res.end("Node already spinning");
+            return;
+        }
+
+        node.spin(0);
+        res.end("Node spinning");
     });
 
-    node.spin()
+    app.post("/stopNode", (req: Request, res: Response) => {
+        node.stop();
+        res.end("Node stopped");
+    });
+
+    app.post("/subscribe/:topic_type/:topic_name", (req: Request, res: Response) => {
+        const topic = req.params.topic_name;
+
+        switch (req.params.topic_type) {
+            case "std_msgs/msg/String":
+                node.createSubscription("std_msgs/msg/String", topic, (msg) => {
+                    const as_std_string = msg as rclnodejs.std_msgs.msg.String;
+                    io.emit("message", as_std_string.data);
+                });
+                res.end(`Subscribed to string topic "${topic}"`);
+                break;
+            default:
+                res.status(404).end(`Unknown topic type "${req.params.topic_type}"`);
+        }
+    });
+
+    app.post("/unsubscribe/:topic_name", (req: Request, res: Response) => {
+        const topic = req.params.topic_name;
+
+        switch (req.params.topic_type) {
+            case "std_msgs/msg/String":
+                node.createSubscription("std_msgs/msg/String", topic, (msg) => {
+                    const as_std_string = msg as rclnodejs.std_msgs.msg.String;
+                    console.log(`Received message from topic ${topic}: ${as_std_string.data}`);
+        
+                    io.emit("message", as_std_string.data);
+                });
+                res.send(`Subscribed to string topic "${topic}"`);
+                break;
+            default:
+                res.status(404).end("Unknown topic type");
+        }
+    });
 })();

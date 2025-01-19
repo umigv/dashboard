@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <h1>Topic Logger</h1>
+    <script type="module">
+        import { io } from "https://cdn.socket.io/4.8.1/socket.io.esm.min.js";
+
+        const socket = io("http://localhost:3001");
+
+        socket.emit("ping", "Ping!");
+        socket.on("pong", (message) => {
+            console.log(message);
+        });
+
+        socket.on("message", (data) => {
+            console.log(data);
+            document.body.insertAdjacentHTML('beforeend', `<p>${data}</p>`);
+        });
+    </script>
+</body>
+
+</html>
