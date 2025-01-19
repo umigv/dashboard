@@ -56,6 +56,8 @@ app.get("/", (req: Request, res: Response) => {
 
     const node = new rclnodejs.Node("umarv_dashboard_node");
 
+    const subscriptions: Map<string, rclnodejs.Subscription> = new Map();
+
     app.post("/spinNode", (req: Request, res: Response) => {
         if (node.spinning) {
             res.end("Node already spinning");
@@ -72,36 +74,33 @@ app.get("/", (req: Request, res: Response) => {
     });
 
     app.post("/subscribe/:topic_type/:topic_name", (req: Request, res: Response) => {
-        const topic = req.params.topic_name;
+        const topic_name = req.params.topic_name;
+        const topic_type = req.params.topic_type;
 
-        switch (req.params.topic_type) {
+        switch (topic_type) {
             case "std_msgs/msg/String":
-                node.createSubscription("std_msgs/msg/String", topic, (msg) => {
+                subscriptions.set(topic_name, node.createSubscription("std_msgs/msg/String", topic_name, (msg) => {
                     const as_std_string = msg as rclnodejs.std_msgs.msg.String;
                     io.emit("message", as_std_string.data);
-                });
-                res.end(`Subscribed to string topic "${topic}"`);
+                }));
+                res.end(`Subscribed to string topic "${topic_name}"`);
                 break;
             default:
-                res.status(404).end(`Unknown topic type "${req.params.topic_type}"`);
+                res.status(404).end(`Unknown topic type "${topic_type}"`);
         }
     });
 
     app.post("/unsubscribe/:topic_name", (req: Request, res: Response) => {
-        const topic = req.params.topic_name;
+        const topic_name = req.params.topic_name;
+        const subscription = subscriptions.get(topic_name);
 
-        switch (req.params.topic_type) {
-            case "std_msgs/msg/String":
-                node.createSubscription("std_msgs/msg/String", topic, (msg) => {
-                    const as_std_string = msg as rclnodejs.std_msgs.msg.String;
-                    console.log(`Received message from topic ${topic}: ${as_std_string.data}`);
-        
-                    io.emit("message", as_std_string.data);
-                });
-                res.send(`Subscribed to string topic "${topic}"`);
-                break;
-            default:
-                res.status(404).end("Unknown topic type");
+        if (!subscription) {
+            res.status(404).end(`Not subscribed to topic with name "${topic_name}"`)
+            return;
         }
+
+        node.destroySubscription(subscription);
+        subscriptions.delete(topic_name);
+        res.end(`Unsubscribed from topic "${topic_name}"`);
     });
 })();
