@@ -1,61 +1,9 @@
-import express, { Request, Response } from "express";
-import { Server } from "socket.io";
 import * as rclnodejs from "rclnodejs";
+import { Request, Response, Application } from "express";
+import { IO } from "./types";
 
-const fs = require('fs');
-
-const app = express();
-
-interface ServerToClientEvents {
-    pong: (message: string) => void;
-    message: (data: string) => void;
-}
-
-interface ClientToServerEvents {
-    ping: (message: string) => void;
-}
-
-interface InterServerEvents { }
-
-interface SocketData {
-    name: string;
-    age: number;
-}
-
-const io = new Server<
-    ClientToServerEvents,
-    ServerToClientEvents,
-    InterServerEvents,
-    SocketData
->({
-    cors: {
-        origin: "*" // TODO: CSRF
-    }
-});
-
-io.on("connection", (socket) => {
-    socket.on("ping", (message) => {
-        console.log(message);
-        socket.emit("pong", "Pong!");
-    });
-});
-
-const index_page = fs.readFileSync("static/index.html", "utf-8");
-app.get("/", (req: Request, res: Response) => {
-    res.end(index_page);
-});
-
-(async function () {
-    await rclnodejs.init();
-    
-    app.listen(3000, () => {
-        console.log("Server is running on port 3000");
-    });
-
-    io.listen(3001);
-
+export function setupROS(app: Application, io: IO) {
     const node = new rclnodejs.Node("umarv_dashboard_node");
-
     const subscriptions: Map<string, rclnodejs.Subscription> = new Map();
 
     app.post("/spinNode", (req: Request, res: Response) => {
@@ -103,4 +51,6 @@ app.get("/", (req: Request, res: Response) => {
         subscriptions.delete(topic_name);
         res.end(`Unsubscribed from topic "${topic_name}"`);
     });
-})();
+
+    return node;
+}
