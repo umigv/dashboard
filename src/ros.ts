@@ -52,6 +52,7 @@ export function setupROS(app: Application, io: IO) {
         res.end(`Unsubscribed from topic "${topic_name}"`);
     });
 
+    // Node needs to be destroyed in order for CTRL+C to work
     process.on('SIGINT', () => {
         node.destroy();
         process.exit(0);
