@@ -52,5 +52,10 @@ export function setupROS(app: Application, io: IO) {
         res.end(`Unsubscribed from topic "${topic_name}"`);
     });
 
+    process.on('SIGINT', () => {
+        node.destroy();
+        process.exit(0);
+    });
+
     return node;
 }
