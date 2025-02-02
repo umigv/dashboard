@@ -291,7 +291,7 @@
 
             <h2>Controller Mode</h2>
             <div class="controller-modes">
-                <button class="mode-button active" onclick="setMode(this)">Autonomous</button>
+                <button class="mode-button" onclick="setMode(this)">Autonomous</button>
                 <button class="mode-button" onclick="setMode(this)">Teleop</button>
                 <button class="mode-button" onclick="setMode(this)">Qualification</button>
                 <button class="mode-button" onclick="setMode(this)">Simulation</button>
@@ -348,109 +348,246 @@
     </div>
 
     <script>
-        // Simulation variables
-        let isRunning = true;
-        let currentSpeed = 15;
-        let robotPosition = { x: 50, y: 50 };
-        let isDragging = false;
-        let dragOffset = { x: 0, y: 0 };
-
-        // Make robot marker draggable
-        const robotMarker = document.getElementById('robotMarker');
-        const pathVisualization = document.getElementById('pathVisualization');
-
-        robotMarker.addEventListener('mousedown', startDragging);
-        document.addEventListener('mousemove', drag);
-        document.addEventListener('mouseup', stopDragging);
-
-        function startDragging(e) {
-            isDragging = true;
-            const rect = robotMarker.getBoundingClientRect();
-            dragOffset.x = e.clientX - rect.left;
-            dragOffset.y = e.clientY - rect.top;
-            e.preventDefault();
+        // Simulation states
+        let robotState = {
+            isRunning: true,
+            speed: 15,
+            position: { x: 200, y: 200 },
+            rotation: 0,
+            mode: 'autonomous',
+            emergency: false,
+            path: [],
+            waypoints: []
+        };
+        
+        // Mock sensor data
+        function generateMockData() {
+            return {
+                imu: {
+                    roll: (Math.sin(Date.now() / 1000) * 2).toFixed(1),
+                    pitch: (Math.cos(Date.now() / 1000) * 1.5).toFixed(1),
+                    yaw: robotState.rotation.toFixed(1)
+                },
+                gps: {
+                    lat: (34.0522 + robotState.position.y / 10000).toFixed(4),
+                    long: (-118.2437 + robotState.position.x / 10000).toFixed(4),
+                    alt: (71 + Math.sin(Date.now() / 1000) * 2).toFixed(0)
+                },
+                status: {
+                    battery: 85,
+                    signal: 92,
+                    errors: []
+                }
+            };
         }
-
-        function drag(e) {
-            if (!isDragging) return;
-            
-            const rect = pathVisualization.getBoundingClientRect();
-            let x = e.clientX - rect.left - dragOffset.x;
-            let y = e.clientY - rect.top - dragOffset.y;
-            
-            // Keep robot within bounds
-            x = Math.max(0, Math.min(rect.width - 20, x));
-            y = Math.max(0, Math.min(rect.height - 20, y));
-            
-            robotMarker.style.left = x + 'px';
-            robotMarker.style.top = y + 'px';
-            
-            // Update simulated sensor data
-            updateSensorData(x, y);
+        
+        // Update visualization
+        function updateVisualization() {
+            if (!robotState.emergency && robotState.isRunning) {
+                // Update robot position with some random movement
+                if (robotState.mode === 'autonomous') {
+                    robotState.position.x += Math.sin(Date.now() / 1000) * 2;
+                    robotState.position.y += Math.cos(Date.now() / 1000) * 2;
+                    robotState.rotation += 1;
+                }
+        
+                // Keep robot within bounds
+                robotState.position.x = Math.max(0, Math.min(400, robotState.position.x));
+                robotState.position.y = Math.max(0, Math.min(400, robotState.position.y));
+                robotState.rotation = robotState.rotation % 360;
+        
+                // Update robot marker
+                const marker = document.getElementById('robotMarker');
+                marker.style.left = `${robotState.position.x}px`;
+                marker.style.top = `${robotState.position.y}px`;
+                marker.style.transform = `translate(-50%, -50%) rotate(${robotState.rotation}deg)`;
+        
+                // Draw path
+                if (robotState.path.length > 100) robotState.path.shift();
+                robotState.path.push({...robotState.position});
+                drawPath();
+            }
+        
+            // Update sensor displays
+            const mockData = generateMockData();
+            updateSensorDisplays(mockData);
         }
-
-        function stopDragging() {
-            isDragging = false;
-        }
-
-        function updateSensorData(x, y) {
-            // Simulate sensor data changes based on position
-            document.getElementById('imuRoll').textContent = `Roll: ${(Math.random() * 2 - 1).toFixed(1)}°`;
-            document.getElementById('imuPitch').textContent = `Pitch: ${(Math.random() * 2 - 1).toFixed(1)}°`;
-            document.getElementById('imuYaw').textContent = `Yaw: ${(x / 3).toFixed(1)}°`;
+        
+        // Draw robot path
+        function drawPath() {
+            const pathContainer = document.getElementById('pathContainer');
+            pathContainer.innerHTML = '';
             
-            document.getElementById('speedometer').textContent = `${currentSpeed} km/h`;
+            const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const pathData = robotState.path.map((p, i) => 
+                (i === 0 ? 'M' : 'L') + `${p.x},${p.y}`
+            ).join(' ');
             
-            // Simulate GPS changes
-            const baseLat = 34.0522;
-            const baseLong = 118.2437;
-            document.getElementById('gpsLat').textContent = `Lat: ${(baseLat + y/10000).toFixed(4)}° N`;
-            document.getElementById('gpsLong').textContent = `Long: ${(baseLong + x/10000).toFixed(4)}° W`;
+            pathElement.setAttribute('d', pathData);
+            pathElement.setAttribute('stroke', '#3498db');
+            pathElement.setAttribute('stroke-width', '2');
+            pathElement.setAttribute('fill', 'none');
+            pathContainer.appendChild(pathElement);
         }
-
-        // Mode control
+        
+        // Update sensor displays
+        function updateSensorDisplays(data) {
+            document.getElementById('imuRoll').textContent = `Roll: ${data.imu.roll}°`;
+            document.getElementById('imuPitch').textContent = `Pitch: ${data.imu.pitch}°`;
+            document.getElementById('imuYaw').textContent = `Yaw: ${data.imu.yaw}°`;
+            
+            document.getElementById('gpsLat').textContent = `Lat: ${data.gps.lat}° N`;
+            document.getElementById('gpsLong').textContent = `Long: ${data.gps.long}° W`;
+            document.getElementById('gpsAlt').textContent = `Alt: ${data.gps.alt}m`;
+            
+            document.getElementById('speedometer').textContent = `${robotState.speed} km/h`;
+        }
+        
+        // Control functions
         function setMode(button) {
+            const mode = button.textContent.toLowerCase();
             document.querySelectorAll('.mode-button').forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
+            robotState.mode = mode;
             
             // Simulate mode change effects
-            const statusDot = document.getElementById('robotStatus');
-            statusDot.className = 'status-dot';
-            setTimeout(() => statusDot.classList.add('warning'), 100);
-            setTimeout(() => statusDot.classList.remove('warning'), 1000);
+            if (mode === 'autonomous') {
+                robotState.speed = 15;
+            } else if (mode === 'teleop') {
+                robotState.speed = 8;
+            }
         }
-
-        // Mission controls
+        
         function startMission() {
-            isRunning = true;
+            robotState.isRunning = true;
             document.getElementById('robotRunning').classList.remove('warning', 'error');
-            currentSpeed = 15;
-            simulateMovement();
+            document.getElementById('robotStatus').classList.remove('error', 'warning');
+            robotState.emergency = false;
         }
-
+        
         function pauseMission() {
-            isRunning = false;
+            robotState.isRunning = false;
             document.getElementById('robotRunning').classList.add('warning');
-            currentSpeed = 0;
-            document.getElementById('speedometer').textContent = '0 km/h';
+            document.getElementById('robotStatus').classList.add('warning');
         }
-
+        
         function emergencyStop() {
-            isRunning = false;
-            currentSpeed = 0;
+            robotState.isRunning = false;
+            robotState.emergency = true;
+            robotState.speed = 0;
             document.getElementById('robotRunning').classList.add('error');
-            document.getElementById('speedometer').textContent = '0 km/h';
             document.getElementById('robotStatus').classList.add('error');
             document.querySelectorAll('.status-item').forEach(item => item.classList.add('error'));
         }
-
-        // Path controls
+        
         function setWaypoint() {
-            const marker = document.createElement('div');
-            marker.style.position = 'absolute';
-            marker.style.width = '10px';
-            marker.style.height = '10px';
-            marker.style.backgroundColor = '#e74c3c';
-            marker.style.borderRadius = '10px'
-
+            const waypoint = document.createElement('div');
+            waypoint.className = 'waypoint';
+            waypoint.style.position = 'absolute';
+            waypoint.style.left = `${robotState.position.x}px`;
+            waypoint.style.top = `${robotState.position.y}px`;
+            waypoint.style.width = '10px';
+            waypoint.style.height = '10px';
+            waypoint.style.backgroundColor = '#e74c3c';
+            waypoint.style.borderRadius = '50%';
+            waypoint.style.transform = 'translate(-50%, -50%)';
+            document.getElementById('pathVisualization').appendChild(waypoint);
+            robotState.waypoints.push({...robotState.position});
         }
+        
+        function clearPath() {
+            robotState.path = [];
+            robotState.waypoints = [];
+            document.getElementById('pathContainer').innerHTML = '';
+            document.querySelectorAll('.waypoint').forEach(wp => wp.remove());
+        }
+        
+        // Initialize visualization
+        function initializeVisualization() {
+            const pathVisualization = document.getElementById('pathVisualization');
+            
+            // Add SVG container for path
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.style.width = '100%';
+            svg.style.height = '100%';
+            svg.style.position = 'absolute';
+            svg.id = 'pathContainer';
+            pathVisualization.appendChild(svg);
+            
+            // Add grid lines
+            for (let i = 0; i < 400; i += 40) {
+                const horizontalLine = document.createElement('div');
+                const verticalLine = document.createElement('div');
+                
+                horizontalLine.className = 'grid-line';
+                verticalLine.className = 'grid-line';
+                
+                horizontalLine.style.left = '0';
+                horizontalLine.style.top = `${i}px`;
+                horizontalLine.style.width = '100%';
+                horizontalLine.style.height = '1px';
+                
+                verticalLine.style.top = '0';
+                verticalLine.style.left = `${i}px`;
+                verticalLine.style.height = '100%';
+                verticalLine.style.width = '1px';
+                
+                pathVisualization.appendChild(horizontalLine);
+                pathVisualization.appendChild(verticalLine);
+            }
+        }
+        
+        // Add simulated camera feed
+        function updateCameraFeed() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+            
+            // Create simple simulated camera view
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, 300, 200);
+            
+            // Draw some random "obstacles"
+            ctx.fillStyle = '#34495e';
+            for (let i = 0; i < 5; i++) {
+                const x = Math.sin(Date.now() / 1000 + i) * 100 + 150;
+                const y = Math.cos(Date.now() / 1000 + i) * 50 + 100;
+                ctx.beginPath();
+                ctx.arc(x, y, 10, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            document.querySelector('.camera-feed').innerHTML = '';
+            document.querySelector('.camera-feed').appendChild(canvas);
+        }
+        
+        // Initialize and start simulation
+        initializeVisualization();
+        setInterval(updateVisualization, 50);
+        setInterval(updateCameraFeed, 100);
+        
+        // Initialize keyboard controls for teleop mode
+        document.addEventListener('keydown', (e) => {
+            if (robotState.mode === 'teleop' && robotState.isRunning && !robotState.emergency) {
+                switch(e.key) {
+                    case 'ArrowUp':
+                        robotState.position.y -= 5;
+                        break;
+                    case 'ArrowDown':
+                        robotState.position.y += 5;
+                        break;
+                    case 'ArrowLeft':
+                        robotState.position.x -= 5;
+                        robotState.rotation -= 5;
+                        break;
+                    case 'ArrowRight':
+                        robotState.position.x += 5;
+                        robotState.rotation += 5;
+                        break;
+                }
+            }
+        });
+        </script>
+        </body>
+        </html>
