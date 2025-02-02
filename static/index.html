@@ -450,11 +450,16 @@
             button.classList.add('active');
             robotState.mode = mode;
             
-            // Simulate mode change effects
-            if (mode === 'autonomous') {
-                robotState.speed = 15;
-            } else if (mode === 'teleop') {
-                robotState.speed = 8;
+
+            if (["autonomous", "teleop"].includes(mode)) {
+                //inserted from the web
+                fetch("http://localhost:3000/changeMode", {
+                    method: "POST",
+                    body: JSON.stringify({mode: mode}),
+                    headers: {
+                        "Content-type": "application/json; charset=UTF-8"
+                    }
+                });
             }
         }
         

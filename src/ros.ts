@@ -1,10 +1,29 @@
 import * as rclnodejs from "rclnodejs";
-import { Request, Response, Application } from "express";
+import { Request, Response, Application, json } from "express";
 import { IO } from "./types";
 
 export function setupROS(app: Application, io: IO) {
     const node = new rclnodejs.Node("umarv_dashboard_node");
     const subscriptions: Map<string, rclnodejs.Subscription> = new Map();
+    
+    const modePublisher = node.createPublisher("std_msgs/msg/Int32", "is_auto");
+    node.spin(0);
+
+    app.use(json());
+
+    app.post("/changeMode", (req: Request, res: Response) => {
+        const mode: string = req.body.mode;
+
+        if (!["autonomous", "teleop"].includes(mode)) {
+            res.end("Invalid mode!")
+        }
+
+        modePublisher.publish({
+            data: req.body.mode === "autonomous" ? 1 : 0
+        });
+
+        res.end(`Changed mode to ${mode}!`);
+    })
 
     app.post("/spinNode", (req: Request, res: Response) => {
         if (node.spinning) {
