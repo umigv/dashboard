@@ -1,23 +1,456 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Control Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        }
 
+        body {
+            background-color: #f0f2f5;
+        }
+
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: normal;
+        }
+
+        .connection-status {
+            font-size: 1rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 1rem;
+            padding: 1rem;
+            height: calc(100vh - 60px);
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #2ecc71;
+            transition: background-color 0.3s;
+        }
+
+        .status-dot.warning {
+            background-color: #f1c40f;
+        }
+
+        .status-dot.error {
+            background-color: #e74c3c;
+        }
+
+        .system-checks {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            color: #666;
+        }
+
+        .check-item::before {
+            content: "✓";
+            color: #2ecc71;
+        }
+
+        .check-item.error::before {
+            content: "✕";
+            color: #e74c3c;
+        }
+
+        .controller-modes {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .mode-button {
+            padding: 0.5rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: white;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-button:hover {
+            background: #f5f5f5;
+        }
+
+        .mode-button.active {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .operation-status {
+            margin-top: 1rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            color: #666;
+            transition: color 0.3s;
+        }
+
+        .status-item::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #2ecc71;
+            transition: background-color 0.3s;
+        }
+
+        .status-item.warning::before {
+            background-color: #f1c40f;
+        }
+
+        .status-item.error::before {
+            background-color: #e74c3c;
+        }
+
+        .path-visualization {
+            position: relative;
+            background: #f8f9fa;
+            border-radius: 8px;
+            height: 400px;
+            cursor: move;
+        }
+
+        .robot-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 20px solid #3498db;
+            transition: transform 0.3s;
+            cursor: move;
+        }
+
+        .grid-line {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .hardware-info {
+            margin-top: 1rem;
+            display: grid;
+            grid-template-columns: auto 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .speedometer {
+            width: 100px;
+            height: 100px;
+            border: 3px solid #3498db;
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .data-box {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+        }
+
+        .data-box h3 {
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            color: #666;
+        }
+
+        .camera-feed {
+            background: #f8f9fa;
+            height: 300px;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .camera-feed::after {
+            content: "Camera Feed";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .control-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .control-button {
+            padding: 0.5rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-button:hover {
+            background: #f5f5f5;
+        }
+
+        .emergency-stop {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 4px;
+            width: 100%;
+            margin-top: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .emergency-stop:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
 <body>
-    <h1>Topic Logger</h1>
-    <script type="module">
-        import { io } from "https://cdn.socket.io/4.8.1/socket.io.esm.min.js";
+    <header class="header">
+        <h1>Robot Control Interface</h1>
+        <div class="connection-status">Connected: RB-001</div>
+    </header>
 
-        const socket = io("http://localhost:3001");
+    <div class="dashboard">
+        <div class="panel">
+            <div class="status-indicator">
+                <div class="status-dot" id="robotStatus"></div>
+                <span id="statusText">Ready to Run</span>
+            </div>
 
-        socket.emit("ping", "Ping!");
-        socket.on("pong", (message) => {
-            console.log(message);
-        });
+            <div class="system-checks">
+                <div class="check-item" id="calibrationStatus">Calibration: OK</div>
+                <div class="check-item" id="hardwareStatus">Hardware: Connected</div>
+                <div class="check-item" id="sensorStatus">Sensors: Operational</div>
+            </div>
 
-        socket.on("message", (data) => {
-            console.log(data);
-            document.body.insertAdjacentHTML('beforeend', `<p>${data}</p>`);
-        });
-    </script>
-</body>
+            <h2>Controller Mode</h2>
+            <div class="controller-modes">
+                <button class="mode-button active" onclick="setMode(this)">Autonomous</button>
+                <button class="mode-button" onclick="setMode(this)">Teleop</button>
+                <button class="mode-button" onclick="setMode(this)">Qualification</button>
+                <button class="mode-button" onclick="setMode(this)">Simulation</button>
+            </div>
 
-</html>
+            <div class="operation-status">
+                <h2>Operation Status</h2>
+                <div class="status-item" id="robotRunning">Robot Running</div>
+                <div class="status-item" id="driveActive">Drive Active</div>
+                <div class="status-item" id="driveConnected">ODrive Connected</div>
+                <div class="status-item warning" id="pathStatus">Following Path</div>
+                <div class="status-item" id="waypointStatus">Waypoint Reached</div>
+            </div>
+
+            <button class="emergency-stop" onclick="emergencyStop()">EMERGENCY STOP</button>
+        </div>
+
+        <div class="panel">
+            <h2>Path Visualization</h2>
+            <div class="path-visualization" id="pathVisualization">
+                <div class="robot-marker" id="robotMarker"></div>
+            </div>
+
+            <div class="hardware-info">
+                <div class="speedometer" id="speedometer">
+                    15 km/h
+                </div>
+                <div class="data-box">
+                    <h3>IMU Data</h3>
+                    <div id="imuRoll">Roll: 0.5°</div>
+                    <div id="imuPitch">Pitch: 1.2°</div>
+                    <div id="imuYaw">Yaw: 182.3°</div>
+                </div>
+                <div class="data-box">
+                    <h3>GPS Location</h3>
+                    <div id="gpsLat">Lat: 34.0522° N</div>
+                    <div id="gpsLong">Long: 118.2437° W</div>
+                    <div id="gpsAlt">Alt: 71m</div>
+                </div>
+            </div>
+
+            <div class="control-buttons">
+                <button class="control-button" onclick="setWaypoint()">Set Waypoint</button>
+                <button class="control-button" onclick="clearPath()">Clear Path</button>
+                <button class="control-button" onclick="startMission()">Start Mission</button>
+                <button class="control-button" onclick="pauseMission()">Pause Mission</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Live Feed</h2>
+            <div class="camera-feed"></div>
+        </div>
+    </div>
+
+    <script>
+        // Simulation variables
+        let isRunning = true;
+        let currentSpeed = 15;
+        let robotPosition = { x: 50, y: 50 };
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+
+        // Make robot marker draggable
+        const robotMarker = document.getElementById('robotMarker');
+        const pathVisualization = document.getElementById('pathVisualization');
+
+        robotMarker.addEventListener('mousedown', startDragging);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', stopDragging);
+
+        function startDragging(e) {
+            isDragging = true;
+            const rect = robotMarker.getBoundingClientRect();
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            
+            const rect = pathVisualization.getBoundingClientRect();
+            let x = e.clientX - rect.left - dragOffset.x;
+            let y = e.clientY - rect.top - dragOffset.y;
+            
+            // Keep robot within bounds
+            x = Math.max(0, Math.min(rect.width - 20, x));
+            y = Math.max(0, Math.min(rect.height - 20, y));
+            
+            robotMarker.style.left = x + 'px';
+            robotMarker.style.top = y + 'px';
+            
+            // Update simulated sensor data
+            updateSensorData(x, y);
+        }
+
+        function stopDragging() {
+            isDragging = false;
+        }
+
+        function updateSensorData(x, y) {
+            // Simulate sensor data changes based on position
+            document.getElementById('imuRoll').textContent = `Roll: ${(Math.random() * 2 - 1).toFixed(1)}°`;
+            document.getElementById('imuPitch').textContent = `Pitch: ${(Math.random() * 2 - 1).toFixed(1)}°`;
+            document.getElementById('imuYaw').textContent = `Yaw: ${(x / 3).toFixed(1)}°`;
+            
+            document.getElementById('speedometer').textContent = `${currentSpeed} km/h`;
+            
+            // Simulate GPS changes
+            const baseLat = 34.0522;
+            const baseLong = 118.2437;
+            document.getElementById('gpsLat').textContent = `Lat: ${(baseLat + y/10000).toFixed(4)}° N`;
+            document.getElementById('gpsLong').textContent = `Long: ${(baseLong + x/10000).toFixed(4)}° W`;
+        }
+
+        // Mode control
+        function setMode(button) {
+            document.querySelectorAll('.mode-button').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Simulate mode change effects
+            const statusDot = document.getElementById('robotStatus');
+            statusDot.className = 'status-dot';
+            setTimeout(() => statusDot.classList.add('warning'), 100);
+            setTimeout(() => statusDot.classList.remove('warning'), 1000);
+        }
+
+        // Mission controls
+        function startMission() {
+            isRunning = true;
+            document.getElementById('robotRunning').classList.remove('warning', 'error');
+            currentSpeed = 15;
+            simulateMovement();
+        }
+
+        function pauseMission() {
+            isRunning = false;
+            document.getElementById('robotRunning').classList.add('warning');
+            currentSpeed = 0;
+            document.getElementById('speedometer').textContent = '0 km/h';
+        }
+
+        function emergencyStop() {
+            isRunning = false;
+            currentSpeed = 0;
+            document.getElementById('robotRunning').classList.add('error');
+            document.getElementById('speedometer').textContent = '0 km/h';
+            document.getElementById('robotStatus').classList.add('error');
+            document.querySelectorAll('.status-item').forEach(item => item.classList.add('error'));
+        }
+
+        // Path controls
+        function setWaypoint() {
+            const marker = document.createElement('div');
+            marker.style.position = 'absolute';
+            marker.style.width = '10px';
+            marker.style.height = '10px';
+            marker.style.backgroundColor = '#e74c3c';
+            marker.style.borderRadius = '10px'
+
+        }
