@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 import * as rclnodejs from "rclnodejs";
 import { Request, Response, Application, json } from "express";
 import { IO } from "./types";
@@ -7,6 +9,39 @@ export function setupROS(app: Application, io: IO) {
     const subscriptions: Map<string, rclnodejs.Subscription> = new Map();
     
     const modePublisher = node.createPublisher("std_msgs/msg/Int32", "is_auto");
+
+    node.createSubscription("sensor_msgs/msg/Image", "camera", async (msgPromise) => {
+        const imageData = (await msgPromise) as rclnodejs.sensor_msgs.msg.Image;
+        io.emit("camera", JSON.stringify(imageData));
+    });
+
+    if (!process.env.PROD) {
+        const cameraPublisher = node.createPublisher("sensor_msgs/msg/Image", "camera");
+
+        setInterval(() => {
+            const imageData = new Uint8Array(640 * 480 * 3);
+            for (let i = 0; i < imageData.length; i++) {
+                imageData[i] = Math.floor(Math.random() * 256);
+            }
+
+            cameraPublisher.publish({
+                header: {
+                    stamp: {
+                        sec: 0,
+                        nanosec: 0
+                    },
+                    frame_id: "camera"
+                },
+                height: 480,
+                width: 640,
+                encoding: "rgb8",
+                is_bigendian: 0,
+                step: 640 * 3,
+                data: imageData
+            });
+        }, 1000);
+    }
+
     node.spin(0);
 
     app.use(json());

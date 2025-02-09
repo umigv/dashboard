@@ -3,6 +3,7 @@ import { Server as SocketServer } from "socket.io";
 export interface ServerToClientEvents {
     pong: (message: string) => void;
     message: (data: string) => void;
+    camera: (imageString: string) => void;
 }
 
 export interface ClientToServerEvents {
