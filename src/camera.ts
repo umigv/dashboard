@@ -10,7 +10,6 @@ export class CameraHandler {
         const mjpegRequests = new Set<Response>();
     
         app.get("/camera/", async (req: Request, res: Response) => {
-    
             res.writeHead(200, {
                 'Cache-Control': 'no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0',
                 'Pragma': 'no-cache',
