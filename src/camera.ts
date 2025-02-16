@@ -1,9 +1,10 @@
 import * as rclnodejs from "rclnodejs";
 import { Application, Request, Response } from "express";
 import sharp from "sharp";
+import { promisify } from "util";
 
 export class CameraHandler {
-    setupCameraEndpoint(app: Application, node: rclnodejs.Node) {
+    setupCameraFeedEndpoint(app: Application, node: rclnodejs.Node) {
         const MJPEGBOUNDARY = "--mjpegstream";
         const JPEG_QUALITY = 80;
     
@@ -82,5 +83,43 @@ export class CameraHandler {
                 data: imageData
             });
         }, 1000 / FRAME_RATE);
+    }
+
+    setupCameraControlsEndpoint(app: Application, node: rclnodejs.Node) {
+        const ZED_NODE = "zed/zed_node"
+        
+        const parameterClient = node.createClient(
+            "rcl_interfaces/srv/SetParameters",
+            `/${ZED_NODE}/set_parameters`
+        );
+
+        app.post("/cameraControls", async (req: Request, res: Response) => {
+            const params = req.body as { [key: string]: number };
+
+            console.log("got", params);
+
+            const request: rclnodejs.rcl_interfaces.srv.SetParameters_Request = {
+                parameters: []
+            }
+
+            const validParamNames = ["brightness", "contrast"];
+
+            validParamNames.forEach(paramName => {
+                if (params[paramName]) {
+                    request.parameters.push({
+                        name: `video.${paramName}`,
+                        value: {
+                            type: rclnodejs.ParameterType.PARAMETER_INTEGER, 
+                            integer_value: params[paramName]
+                        } as unknown as rclnodejs.rcl_interfaces.msg.ParameterValue
+                    });
+                }
+            });
+
+            const asyncSendRequest = promisify(parameterClient.sendRequest).bind(parameterClient);
+            console.log(await asyncSendRequest(request));
+            
+            res.end("Camera controls updated!");
+        });
     }
 };

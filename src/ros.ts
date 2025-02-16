@@ -12,7 +12,9 @@ export function setupROS(app: Application, io: IO) {
     const modePublisher = node.createPublisher("std_msgs/msg/Int32", "is_auto");
 
     const cameraHandler = new CameraHandler();
-    cameraHandler.setupCameraEndpoint(app, node);
+    cameraHandler.setupCameraFeedEndpoint(app, node);
+    cameraHandler.setupCameraControlsEndpoint(app, node);
+
     if (!process.env.PROD) {
         cameraHandler.mockCameraData(node);
     }
