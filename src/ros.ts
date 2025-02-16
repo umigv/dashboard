@@ -56,6 +56,37 @@ function setupCameraEndpoint(app: Application, node: rclnodejs.Node) {
     });
 }
 
+function mockCameraData(node: rclnodejs.Node) {
+    const cameraPublisher = node.createPublisher("sensor_msgs/msg/Image", "camera");
+
+    const IMAGE_WIDTH = 1280;
+    const IMAGE_HEIGHT = 720;
+    const FRAME_RATE = 10;
+
+    setInterval(() => {
+        const imageData = new Uint8Array(IMAGE_WIDTH * IMAGE_HEIGHT * 3);
+        for (let i = 0; i < imageData.length; i++) {
+            imageData[i] = Math.floor(Math.random() * 256);
+        }
+
+        cameraPublisher.publish({
+            header: {
+                stamp: {
+                    sec: 0,
+                    nanosec: 0
+                },
+                frame_id: "camera"
+            },
+            height: IMAGE_HEIGHT,
+            width: IMAGE_WIDTH,
+            encoding: "rgb8",
+            is_bigendian: 0,
+            step: IMAGE_WIDTH * 3,
+            data: imageData
+        });
+    }, 1000 / FRAME_RATE);
+}
+
 export function setupROS(app: Application, io: IO) {
     const node = new rclnodejs.Node("umarv_dashboard_node");
     const subscriptions: Map<string, rclnodejs.Subscription> = new Map();
@@ -65,35 +96,7 @@ export function setupROS(app: Application, io: IO) {
     setupCameraEndpoint(app, node);
 
     if (!process.env.PROD) {
-        // Publish fake camera data for development
-        const cameraPublisher = node.createPublisher("sensor_msgs/msg/Image", "camera");
-
-        const IMAGE_WIDTH = 1280;
-        const IMAGE_HEIGHT = 720;
-        const FRAME_RATE = 10;
-
-        setInterval(() => {
-            const imageData = new Uint8Array(IMAGE_WIDTH * IMAGE_HEIGHT * 3);
-            for (let i = 0; i < imageData.length; i++) {
-                imageData[i] = Math.floor(Math.random() * 256);
-            }
-
-            cameraPublisher.publish({
-                header: {
-                    stamp: {
-                        sec: 0,
-                        nanosec: 0
-                    },
-                    frame_id: "camera"
-                },
-                height: IMAGE_HEIGHT,
-                width: IMAGE_WIDTH,
-                encoding: "rgb8",
-                is_bigendian: 0,
-                step: IMAGE_WIDTH * 3,
-                data: imageData
-            });
-        }, 1000 / FRAME_RATE);
+        mockCameraData(node);
     }
 
     node.spin(0);
