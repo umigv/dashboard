@@ -214,7 +214,7 @@
 
         .camera-feed {
             background: #f8f9fa;
-            height: 300px;
+            width: 100%;
             border-radius: 4px;
             margin-bottom: 1rem;
             display: flex;
@@ -223,6 +223,7 @@
             color: #666;
             position: relative;
             overflow: hidden;
+            object-fit: contain;
         }
 
         .control-buttons {
@@ -335,7 +336,7 @@
 
         <div class="panel">
             <h2>Camera Feed</h2>
-            <div class="camera-feed"></div>
+            <img src="/camera/" class="camera-feed">
         </div>
     </div>
 
@@ -346,25 +347,6 @@
         socket.emit("ping", "Ping!");
         socket.on("pong", (message) => {
             console.log(message);
-        });
-
-        socket.on("camera", (imageString) => {
-            const image = JSON.parse(imageString);
-            
-            // convert to regular array, add alpha channel
-            const pixelsArray = Object.values(image.data).concat(new Array(image.width * image.height).fill(255));
-
-            const imageData = new ImageData(new Uint8ClampedArray(pixelsArray), image.width, image.height);
-
-            const canvas = document.createElement('canvas');
-            canvas.width = image.width;
-            canvas.height = image.height;
-            const ctx = canvas.getContext('2d');
-            ctx.putImageData(imageData, 0, 0);
-
-            const cameraFeedContainer = document.querySelector('.camera-feed');
-            cameraFeedContainer.innerHTML = '';
-            cameraFeedContainer.appendChild(canvas);
         });
 
         // Simulation states
