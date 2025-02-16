@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 import * as rclnodejs from "rclnodejs";
-import { Request, Response, Application, json } from "express";
+import { Request, Response, Application } from "express";
 import { IO } from "./types";
 
 export function setupROS(app: Application, io: IO) {
@@ -44,8 +44,6 @@ export function setupROS(app: Application, io: IO) {
     }
 
     node.spin(0);
-
-    app.use(json());
 
     app.post("/changeMode", (req: Request, res: Response) => {
         const mode: string = req.body.mode;
