@@ -16,6 +16,7 @@ export function setupROS(app: Application, io: IO) {
     });
 
     if (!process.env.PROD) {
+        // Publish fake camera data for development
         const cameraPublisher = node.createPublisher("sensor_msgs/msg/Image", "camera");
 
         setInterval(() => {
