@@ -80,6 +80,17 @@
         <div class="panel">
             <h2>Camera Feed</h2>
             <img src="/camera/" class="camera-feed">
+
+            <div class="camera-controls">
+                <div class="control-group">
+                    <label>Brightness: <span id="brightnessValue">4</span></label>
+                    <input type="range" min="0" max="8" value="4" id="brightnessSlider">
+                </div>
+                <div class="control-group">
+                    <label>Contrast: <span id="contrastValue">4</span></label>
+                    <input type="range" min="0" max="8" value="4" id="contrastSlider">
+                </div>
+            </div>
         </div>
     </div>
 
@@ -90,6 +101,25 @@
         socket.emit("ping", "Ping!");
         socket.on("pong", (message) => {
             console.log(message);
+        });
+
+        const brightnessSlider = document.getElementById('brightnessSlider');
+        const contrastSlider = document.getElementById('contrastSlider');
+        const brightnessValue = document.getElementById('brightnessValue');
+        const contrastValue = document.getElementById('contrastValue');
+
+        function updateCameraFiltersText() {
+            brightnessValue.textContent = brightnessSlider.value;
+            contrastValue.textContent = contrastSlider.value;
+        }
+
+        function postCameraFiltersUpdate() {
+            alert("Camera filter update not implemented!");
+        }
+
+        [brightnessSlider, contrastSlider].forEach(slider => {
+            slider.addEventListener('input', updateCameraFiltersText);
+            slider.addEventListener('change', postCameraFiltersUpdate);
         });
 
         // Simulation states
