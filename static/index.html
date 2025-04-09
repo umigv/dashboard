@@ -21,10 +21,10 @@
             <h2>Controller Mode</h2>
             <div class="controller-modes">
                 <button class="mode-button active" onclick="setMode(this)" id="disabled-button">Disabled</button>
-                <button class="mode-button" onclick="setMode(this)">Autonomous</button>
-                <button class="mode-button" onclick="setMode(this)">Teleop</button>
-                <button class="mode-button" onclick="setMode(this)">Qualification</button>
-                <button class="mode-button" onclick="setMode(this)">Simulation</button>
+                <button class="mode-button" onclick="setMode(this)" id="autonomous-button">Autonomous</button>
+                <button class="mode-button" onclick="setMode(this)" id="teleop-button">Teleop</button>
+                <button class="mode-button" onclick="setMode(this)" id="qualification-button">Qualification</button>
+                <button class="mode-button" onclick="setMode(this)" id="simulation-button">Simulation</button>
             </div>
 
 
@@ -155,13 +155,7 @@
                 statusText.textContent = "Running";
             }
             
-            // Update mode buttons
-            document.querySelectorAll('.mode-button').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.textContent.toLowerCase() === status.mode.toLowerCase()) {
-                    btn.classList.add('active');
-                }
-            });
+            setMode(document.querySelector(`#${status.mode}-button`));
         }
         
         // Update robot position on visualization
@@ -217,8 +211,7 @@
         }
         
         function emergencyStop() {
-            socket.emit("emergencyStop");
-            setMode(document.querySelector('#disabled-button'));
+            socket.emit("emergencyStop");            
         }
         
         // Request initial robot state when page loads
