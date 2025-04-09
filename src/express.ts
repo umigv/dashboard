@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import {spawn} from "child_process";
 import * as rclnodejs from "rclnodejs";
-import { CameraHandler } from "./camera";
+import { setupCameraEndpoint, mockCameraData } from "./camera";
 
 
 // TODO: Replace with actual launch file when that launch file is written.
@@ -55,10 +55,9 @@ export function setupExpress(node: rclnodejs.Node): Application {
 
     modeControl(app, node);
 
-    const cameraHandler = new CameraHandler();
-    cameraHandler.setupCameraEndpoint(app, node);
+    setupCameraEndpoint(app, node);
     if (!process.env.PROD) {
-        cameraHandler.mockCameraData(node);
+        mockCameraData(node);
     }
 
     return app;
