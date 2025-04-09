@@ -23,6 +23,10 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
     ping: (message: string) => void;
+    cameraSettings(data: {
+        brightness: number;
+        contrast: number;
+    }): void;
 }
 
 export interface InterServerEvents { }

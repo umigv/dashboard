@@ -1,6 +1,17 @@
 import * as rclnodejs from "rclnodejs";
 import { Application, Request, Response } from "express";
 import sharp from "sharp";
+import { Socket } from "socket.io";
+
+function generateIntegerParameterData(name: string, value: number) {
+    return {
+        name,
+        value: {
+            type: rclnodejs.ParameterType.PARAMETER_INTEGER,
+            integer_value: value
+        }
+    } as rclnodejs.rcl_interfaces.msg.Parameter;
+}
 
 export function setupCameraEndpoint(app: Application, node: rclnodejs.Node) {
     const MJPEGBOUNDARY = "--mjpegstream";
@@ -81,4 +92,39 @@ export function mockCameraData(node: rclnodejs.Node) {
             data: imageData
         });
     }, 1000 / FRAME_RATE);
+}
+
+export function handleCameraSettingsUpdate(socket: Socket, node: rclnodejs.Node) {
+    const ZED_NODE = "zed_node"; // TODO: Find real zed node name
+
+    // TODO: this should probably be shared globally between every socket
+    const parameterClient = node.createClient(
+        'rcl_interfaces/srv/SetParameters',
+        `/${ZED_NODE}/set_parameters`
+    );
+
+    socket.on("cameraSettings", (data) => {
+        const { brightness, contrast } = data;
+        const request = {
+            parameters: [
+                generateIntegerParameterData("brightness", brightness),
+                generateIntegerParameterData("contrast", contrast)
+            ]
+        };
+
+        parameterClient.sendRequest(request, (response) => {
+            if (response) {
+                const result = response.results[0];
+                if (result.successful) {
+                console.log("Successfully updated brightness/contrast");
+                } else {
+                console.error(`Failed to set brightness/contrast:`, result.reason);
+                }
+            }
+            });
+    });
+
+    socket.on("disconnect", () => {
+        node.destroyClient(parameterClient);
+    })
 }

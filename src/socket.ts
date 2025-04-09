@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import { IO } from "./types";
 import * as rclnodejs from "rclnodejs";
+import { handleCameraSettingsUpdate } from "./camera";
 
 export function setupSocket(node: rclnodejs.Node): IO {
     const io = new Server({
@@ -14,6 +15,8 @@ export function setupSocket(node: rclnodejs.Node): IO {
             console.log(message);
             socket.emit("pong", "Pong!");
         });
+
+        handleCameraSettingsUpdate(socket, node);
     });
 
     gpsUpdate(io, node);
