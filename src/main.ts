@@ -6,9 +6,9 @@ import * as rclnodejs from "rclnodejs";
 (async function () {
     await rclnodejs.init();
     
-    const app = setupExpress();
-    const io = setupSocket();
-    const node = setupROS(app, io);
+    const node = setupROS();
+    const app = setupExpress(node);
+    const io = setupSocket(node);
 
     app.listen(3000, () => {
         console.log("Server is running on port 3000");
