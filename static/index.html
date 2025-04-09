@@ -183,9 +183,9 @@
             }
             
             if (data.gps) {
-                document.getElementById('gpsLat').textContent = `Lat: ${data.gps.lat}° N`;
-                document.getElementById('gpsLong').textContent = `Long: ${data.gps.long}° W`;
-                document.getElementById('gpsAlt').textContent = `Alt: ${data.gps.alt}m`;
+                document.getElementById('gpsLat').textContent = `Lat: ${data.gps.latitude}° N`;
+                document.getElementById('gpsLong').textContent = `Long: ${data.gps.longitude}° W`;
+                document.getElementById('gpsAlt').textContent = `Alt: ${data.gps.altitude}m`;
             }
         }
         

@@ -11,6 +11,18 @@ export function setupROS(app: Application, io: IO) {
     
     const modePublisher = node.createPublisher("std_msgs/msg/Int32", "is_auto");
 
+    node.createSubscription("sensor_msgs/msg/NavSatFix", "gps_coords", async (msg) => {
+        const gpsData = (await msg) as rclnodejs.sensor_msgs.msg.NavSatFix;
+
+        io.emit("sensorData", {
+            gps: {
+                latitude: gpsData.latitude,
+                longitude: gpsData.longitude,
+                altitude: gpsData.altitude,
+            }
+        });
+    });
+
     const cameraHandler = new CameraHandler();
     cameraHandler.setupCameraEndpoint(app, node);
     if (!process.env.PROD) {
