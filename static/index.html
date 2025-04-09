@@ -9,7 +9,6 @@
 <body>
     <header class="header">
         <h1>Robot Control Interface</h1>
-        <div class="connection-status">Connected: RB-001</div>
     </header>
 
     <div class="dashboard">
@@ -21,7 +20,7 @@
 
             <h2>Controller Mode</h2>
             <div class="controller-modes">
-                <button class="mode-button active" onclick="setMode(this)">Disabled</button>
+                <button class="mode-button active" onclick="setMode(this)" id="disabled-button">Disabled</button>
                 <button class="mode-button" onclick="setMode(this)">Autonomous</button>
                 <button class="mode-button" onclick="setMode(this)">Teleop</button>
                 <button class="mode-button" onclick="setMode(this)">Qualification</button>
@@ -219,6 +218,7 @@
         
         function emergencyStop() {
             socket.emit("emergencyStop");
+            setMode(document.querySelector('#disabled-button'));
         }
         
         // Request initial robot state when page loads
