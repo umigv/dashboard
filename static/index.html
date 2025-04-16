@@ -23,8 +23,13 @@
                 <button class="mode-button active" onclick="setMode(this)" id="disabled-button">Disabled</button>
                 <button class="mode-button" onclick="setMode(this)" id="autonomous-button">Autonomous</button>
                 <button class="mode-button" onclick="setMode(this)" id="teleop-button">Teleop</button>
-                <button class="mode-button" onclick="setMode(this)" id="qualification-button">Qualification</button>
-                <button class="mode-button" onclick="setMode(this)" id="simulation-button">Simulation</button>
+                <!-- Hidden iframe to handle the form submission -->
+                <iframe name="dummyframe" id="dummyframe" style="display: none;"></iframe>
+                <form action="/startSelfDriving" method="post" target="dummyframe">
+                    <button type="submit" name="Start Self Driving" value="Start Self Driving" class="mode-button">
+                        Start Self Driving
+                    </button>
+                </form>
             </div>
 
 
