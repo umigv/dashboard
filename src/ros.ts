@@ -1,9 +1,6 @@
 require('dotenv').config();
 
 import * as rclnodejs from "rclnodejs";
-import { Request, Response, Application } from "express";
-import { IO } from "./types";
-import { CameraHandler } from "./camera";
 
 export function setupROS() {
     const node = new rclnodejs.Node("umarv_dashboard_node");
