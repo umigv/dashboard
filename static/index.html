@@ -4,7 +4,336 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Robot Control Interface</title>
-    <link rel="stylesheet" href="/static/main.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+        }
+
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: normal;
+        }
+
+        .connection-status {
+            font-size: 1rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 1rem;
+            padding: 1rem;
+            height: calc(100vh - 60px);
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #2ecc71;
+            transition: background-color 0.3s;
+        }
+
+        .status-dot.warning {
+            background-color: #f1c40f;
+        }
+
+        .status-dot.error {
+            background-color: #e74c3c;
+        }
+
+        .system-checks {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            color: #666;
+        }
+
+        .check-item::before {
+            content: "✓";
+            color: #2ecc71;
+        }
+
+        .check-item.error::before {
+            content: "✕";
+            color: #e74c3c;
+        }
+
+        .controller-modes {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .mode-button {
+            padding: 0.5rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: white;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-button:hover {
+            background: #f5f5f5;
+        }
+
+        .mode-button.active {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .operation-status {
+            margin-top: 1rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            color: #666;
+            transition: color 0.3s;
+        }
+
+        .status-item::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #2ecc71;
+            transition: background-color 0.3s;
+        }
+
+        .status-item.warning::before {
+            background-color: #f1c40f;
+        }
+
+        .status-item.error::before {
+            background-color: #e74c3c;
+        }
+
+        .path-visualization {
+            position: relative;
+            background: #f8f9fa;
+            border-radius: 8px;
+            height: 400px;
+            cursor: move;
+        }
+
+        .robot-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 20px solid #3498db;
+            transition: transform 0.3s;
+            cursor: move;
+        }
+
+        .grid-line {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .hardware-info {
+            margin-top: 1rem;
+            display: grid;
+            grid-template-columns: auto 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .speedometer {
+            width: 100px;
+            height: 100px;
+            border: 3px solid #3498db;
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .data-box {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+        }
+
+        .data-box h3 {
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            color: #666;
+        }
+
+        .camera-feed {
+            background: #f8f9fa;
+            height: 300px;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .camera-feed::after {
+            content: "Camera Feed";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .control-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .control-button {
+            padding: 0.5rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-button:hover {
+            background: #f5f5f5;
+        }
+
+        .emergency-stop {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 4px;
+            width: 100%;
+            margin-top: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .emergency-stop:hover {
+            background: #c0392b;
+        }
+
+        
+        .compass {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            border: 2px solid #3498db;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;  
+        }
+
+
+        .compass-arrow {
+            position: absolute;
+            width: 4px;
+            height: 24px;
+            background: #e74c3c;
+            transform-origin: bottom center;
+        }
+
+        .compass-labels {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .compass-label {
+            position: absolute;
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .compass-label.north {
+            top: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .compass-label.south {
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .compass-label.east {
+            right: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .compass-label.west {
+            left: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+    </style>
 </head>
 <body>
     <header class="header">
@@ -44,13 +373,22 @@
 
             <button class="emergency-stop" onclick="emergencyStop()">EMERGENCY STOP</button>
         </div>
-
         <div class="panel">
             <h2>Path Visualization</h2>
             <div class="path-visualization" id="pathVisualization">
                 <div class="robot-marker" id="robotMarker"></div>
+                <div class="compass">
+                    <div class="compass-arrow"></div>
+                    <div class="compass-labels">
+                        <div class="compass-label north">N</div>
+                        <div class="compass-label south">S</div>
+                        <div class="compass-label east">E</div>
+                        <div class="compass-label west">W</div>
+                    </div>
+                </div>
             </div>
 
+            
             <div class="hardware-info">
                 <div class="speedometer" id="speedometer">
                     15 km/h
@@ -78,50 +416,20 @@
         </div>
 
         <div class="panel">
-            <h2>Camera Feed</h2>
-            <img src="/camera/" class="camera-feed">
-
-            <div class="camera-controls">
-                <div class="control-group">
-                    <label>Brightness: <span id="brightnessValue">4</span></label>
-                    <input type="range" min="0" max="8" value="4" id="brightnessSlider">
-                </div>
-                <div class="control-group">
-                    <label>Contrast: <span id="contrastValue">4</span></label>
-                    <input type="range" min="0" max="8" value="4" id="contrastSlider">
-                </div>
-            </div>
+            <h2>Live Feed</h2>
+            <div class="camera-feed"></div>
+            <!-- Hidden iframe to handle the form submission -->
+            <iframe name="dummyframe" id="dummyframe" style="display: none;"></iframe>
+            
+            <form action="/startSelfDriving" method="post" target="dummyframe">
+                <button type="submit" name="Start Self Driving" value="Start Self Driving">
+                    Start Self Driving
+                </button>
+            </form>
         </div>
-    </div>
+        
 
-    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
-    <script>
-        const socket = io("http://localhost:3001");
-
-        socket.emit("ping", "Ping!");
-        socket.on("pong", (message) => {
-            console.log(message);
-        });
-
-        const brightnessSlider = document.getElementById('brightnessSlider');
-        const contrastSlider = document.getElementById('contrastSlider');
-        const brightnessValue = document.getElementById('brightnessValue');
-        const contrastValue = document.getElementById('contrastValue');
-
-        function updateCameraFiltersText() {
-            brightnessValue.textContent = brightnessSlider.value;
-            contrastValue.textContent = contrastSlider.value;
-        }
-
-        function postCameraFiltersUpdate() {
-            alert("Camera filter update not implemented!");
-        }
-
-        [brightnessSlider, contrastSlider].forEach(slider => {
-            slider.addEventListener('input', updateCameraFiltersText);
-            slider.addEventListener('change', postCameraFiltersUpdate);
-        });
-
+    <script>//
         // Simulation states
         let robotState = {
             isRunning: true,
@@ -135,25 +443,32 @@
         };
         
         // Mock sensor data
+
+        // Enhance your existing generateMockData function
         function generateMockData() {
+    // Add realistic noise and variations
+            const noise = Math.random() * 0.5 - 0.25;
             return {
                 imu: {
-                    roll: (Math.sin(Date.now() / 1000) * 2).toFixed(1),
-                    pitch: (Math.cos(Date.now() / 1000) * 1.5).toFixed(1),
-                    yaw: robotState.rotation.toFixed(1)
+                    roll: (Math.sin(Date.now() / 1000) * 2 + noise).toFixed(1),
+                    pitch: (Math.cos(Date.now() / 1000) * 1.5 + noise).toFixed(1),
+                    yaw: (robotState.rotation + noise).toFixed(1)
                 },
                 gps: {
                     lat: (34.0522 + robotState.position.y / 10000).toFixed(4),
                     long: (-118.2437 + robotState.position.x / 10000).toFixed(4),
                     alt: (71 + Math.sin(Date.now() / 1000) * 2).toFixed(0)
                 },
+                // Add more realistic system states
                 status: {
-                    battery: 85,
-                    signal: 92,
+                    battery: Math.max(0, Math.min(100, 85 - (Date.now() % 10000) / 1000)),
+                    signal: Math.max(0, Math.min(100, 92 + Math.sin(Date.now() / 5000) * 10)),
+                    temperature: 25 + Math.sin(Date.now() / 10000) * 5,
                     errors: []
                 }
             };
         }
+ 
         
         // Update visualization
         function updateVisualization() {
@@ -180,6 +495,11 @@
                 if (robotState.path.length > 100) robotState.path.shift();
                 robotState.path.push({...robotState.position});
                 drawPath();
+
+                marker.style.transform = `translate(-50%, -50%) rotate(${robotState.rotation}deg)`;
+                // Update compass
+                const compass = document.querySelector('.compass-arrow');
+                compass.style.transform = `rotate(${robotState.rotation}deg)`;
             }
         
             // Update sensor displays
@@ -231,11 +551,12 @@
                     method: "POST",
                     body: JSON.stringify({mode: mode}),
                     headers: {
-                        "Content-type": "application/json; charset=UTF-8"
+                        "Content-type": "/json; charset=UTF-8"
                     }
                 });
             }
         }
+
         
         function startMission() {
             robotState.isRunning = true;
@@ -257,6 +578,12 @@
             document.getElementById('robotRunning').classList.add('error');
             document.getElementById('robotStatus').classList.add('error');
             document.querySelectorAll('.status-item').forEach(item => item.classList.add('error'));
+        }
+
+        function startSelfDriving() { 
+            robotState.isRunning = true;
+            robotState.emergency = false;
+            robotState.speed = 
         }
         
         function setWaypoint() {
@@ -314,11 +641,50 @@
                 pathVisualization.appendChild(horizontalLine);
                 pathVisualization.appendChild(verticalLine);
             }
+
+        const compass = document.createElement('div');
+                compass.className = 'compass';
+                compass.innerHTML = `
+                    <div class="compass-arrow"></div>
+                    <div class="compass-labels">
+                        <div class="compass-label north">N</div>
+                        <div class="compass-label south">S</div>
+                        <div class="compass-label east">E</div>
+                        <div class="compass-label west">W</div>
+                    </div>
+                `;
+        pathVisualization.appendChild(compass);
+        }
+        
+        // Add simulated camera feed
+        function updateCameraFeed() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+            
+            // Create simple simulated camera view
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, 300, 200);
+            
+            // Draw some random "obstacles"
+            ctx.fillStyle = '#34495e';
+            for (let i = 0; i < 5; i++) {
+                const x = Math.sin(Date.now() / 1000 + i) * 100 + 150;
+                const y = Math.cos(Date.now() / 1000 + i) * 50 + 100;
+                ctx.beginPath();
+                ctx.arc(x, y, 10, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            document.querySelector('.camera-feed').innerHTML = '';
+            document.querySelector('.camera-feed').appendChild(canvas);
         }
         
         // Initialize and start simulation
         initializeVisualization();
         setInterval(updateVisualization, 50);
+        setInterval(updateCameraFeed, 100);
         
         // Initialize keyboard controls for teleop mode
         document.addEventListener('keydown', (e) => {
@@ -341,6 +707,33 @@
                 }
             }
         });
-    </script>
-</body>
-</html>
+
+        import { createOccupancyGridViewer } from './occupancy-grid-viewer';
+
+// Create a viewer specifically configured for ROS nav_msgs/OccupancyGrid format
+const ROSOccupancyGridViewer = createOccupancyGridViewer({
+  // Access the data array directly
+  getData: (msg) => msg.data,
+ 
+  // Access width/height from the MapMetaData in info
+  getWidth: (msg) => msg.info.width,
+  getHeight: (msg) => msg.info.height,
+ 
+  // Get resolution (meters/cell) from MapMetaData
+  getResolution: (msg) => msg.info.resolution,
+ 
+  // Get frame_id from the header
+  getFrameId: (msg) => msg.header.frame_id,
+ 
+  // ROS occupancy values are:
+  // -1: unknown
+  // 0-100: probability of occupancy (0 = free, 100 = occupied)
+  valueRange: { min: -1, max: 100 },
+ 
+  title: "ROS Occupancy Grid"
+});
+
+export default ROSOccupancyGridViewer;
+        </script>
+        </body>
+        </html>
