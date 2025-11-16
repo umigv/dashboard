@@ -4,6 +4,10 @@ import path from "path";
 import {spawn} from "child_process";
 import * as rclnodejs from "rclnodejs";
 import { setupCameraEndpoint, mockCameraData } from "./camera";
+import { setupUpdateGps, mockGpsData } from "./gps";
+import { serialize } from "v8";
+import { mockImuData } from "./imu";
+import { mockOdomData } from "./odom";
 
 
 // TODO: Replace with actual launch file when that launch file is written.
@@ -13,6 +17,7 @@ export function setupExpress(node: rclnodejs.Node): Application {
     const app = express();
 
     app.use('/static', express.static('static'));
+    app.use("/build", express.static(path.join(__dirname))); //allows me to use scripts to modify vals in the html. mostly exposes the build so i can access them in html
     app.use(json());
 
     app.get("/", (req: Request, res: Response) => {
@@ -56,8 +61,13 @@ export function setupExpress(node: rclnodejs.Node): Application {
     modeControl(app, node);
 
     setupCameraEndpoint(app, node);
+    
+
     if (!process.env.PROD) {
         mockCameraData(node);
+        mockGpsData(node);
+        mockImuData(node);
+        mockOdomData(node);
     }
 
     return app;

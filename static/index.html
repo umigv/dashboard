@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Robot Control Interface</title>
     <link rel="stylesheet" href="/static/main.css">
 </head>
+
 <body>
     <header class="header">
         <h1>Robot Control Interface</h1>
@@ -51,12 +53,16 @@
                     <div id="imuPitch">Pitch: 0.0°</div>
                     <div id="imuYaw">Yaw: 0.0°</div>
                 </div>
+                
                 <div class="data-box">
                     <h3>GPS Location</h3>
                     <div id="gpsLat">Lat: 0.0000° N</div>
                     <div id="gpsLong">Long: 0.0000° W</div>
                     <div id="gpsAlt">Alt: 0m</div>
+
                 </div>
+                
+              
             </div>
 
 
@@ -81,6 +87,10 @@
         // Connect to the server
         const socket = io("http://localhost:3001");
 
+        socket.on("connect", () => {
+            console.log("✅ Connected to Socket.IO server!", socket.id);
+        });
+
         // Initialize robot state
         let robotState = {
             isRunning: false,
@@ -96,15 +106,26 @@
             updateRobotStatus(status);
         });
 
-        // Listen for sensor data
-        socket.on("sensorData", (data) => {
+        socket.on("gpsUpdate", (data) => {
+
             updateSensorDisplays(data);
         });
 
-        // Listen for position updates
+        socket.on("imuUpdate", (data) => {
+
+            updateSensorDisplays(data);
+        });
+
+        socket.on("odomUpdate", (data) => {
+
+            updateSensorDisplays(data);
+        });
+
         socket.on("positionUpdate", (position) => {
             updateRobotPosition(position);
         });
+
+        
 
         // Camera control functions
         const brightnessSlider = document.getElementById('brightnessSlider');
@@ -120,7 +141,7 @@
         function postCameraFiltersUpdate() {
             const brightness = brightnessSlider.value;
             const contrast = contrastSlider.value;
-            
+
             socket.emit("cameraSettings", {
                 brightness: brightness,
                 contrast: contrast
@@ -137,11 +158,11 @@
             robotState.isRunning = status.isRunning;
             robotState.mode = status.mode;
             robotState.emergency = status.emergency;
-            
+
             // Update status indicators
             const robotStatusDot = document.getElementById('robotStatus');
             const statusText = document.getElementById('statusText');
-            
+
             if (status.emergency) {
                 robotStatusDot.classList.add('error');
                 robotStatusDot.classList.remove('warning');
@@ -154,68 +175,86 @@
                 robotStatusDot.classList.remove('error', 'warning');
                 statusText.textContent = "Running";
             }
-            
+
             setMode(document.querySelector(`#${status.mode}-button`));
         }
-        
+
         // Update robot position on visualization
         function updateRobotPosition(position) {
             robotState.position = position.coordinates;
             robotState.rotation = position.rotation;
             robotState.speed = position.speed;
-            
+
             // Update robot marker
             const marker = document.getElementById('robotMarker');
             marker.style.left = `${position.coordinates.x}px`;
             marker.style.top = `${position.coordinates.y}px`;
             marker.style.transform = `translate(-50%, -50%) rotate(${position.rotation}deg)`;
-            
+
             // Update speedometer
             document.getElementById('speedometer').textContent = `${position.speed} km/h`;
         }
 
         // Update sensor displays
         function updateSensorDisplays(data) {
-            if (data.imu) {
-                document.getElementById('imuRoll').textContent = `Roll: ${data.imu.roll}°`;
-                document.getElementById('imuPitch').textContent = `Pitch: ${data.imu.pitch}°`;
-                document.getElementById('imuYaw').textContent = `Yaw: ${data.imu.yaw}°`;
+
+
+            if(data.odom){
+                document.getElementById('speedometer').textContent = `${data.odom.velocity.toFixed(2)} Km/h`;
             }
-            
+
+            if (data.imu) {
+
+
+                console.log("its working?");
+                
+                document.getElementById('imuRoll').textContent = `Roll: ${data.imu.roll.toFixed(2)}°`;
+                document.getElementById('imuPitch').textContent = `Pitch: ${data.imu.pitch.toFixed(2)}°`;
+                document.getElementById('imuYaw').textContent = `Yaw: ${data.imu.yaw.toFixed(2)}°`;
+            }
+
             if (data.gps) {
-                document.getElementById('gpsLat').textContent = `Lat: ${data.gps.latitude}° N`;
-                document.getElementById('gpsLong').textContent = `Long: ${data.gps.longitude}° W`;
-                document.getElementById('gpsAlt').textContent = `Alt: ${data.gps.altitude}m`;
+
+
+                const lat_dir = data.gps.latitude >= 0 ? 'N' : 'S';
+                const long_dir = data.gps.longitude >= 0 ? 'E' : 'W';
+
+                document.getElementById('gpsLat').textContent = `Lat: ${data.gps.latitude.toFixed(4)}° ${lat_dir}`;
+                document.getElementById('gpsLong').textContent = `Long: ${data.gps.longitude.toFixed(4)}° ${long_dir}`;
+                document.getElementById('gpsAlt').textContent = `Alt: ${data.gps.altitude.toFixed(4)}m`;
             }
         }
+
         
+
         // Control functions
         function setMode(button) {
             const mode = button.textContent.toLowerCase();
-      
+
             document.querySelectorAll('.mode-button').forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             robotState.mode = mode;
 
             socket.emit("setMode", { mode: mode });
-            
+
             if (["autonomous", "teleop"].includes(mode)) {
                 fetch("http://localhost:3000/changeMode", {
                     method: "POST",
-                    body: JSON.stringify({mode: mode}),
+                    body: JSON.stringify({ mode: mode }),
                     headers: {
                         "Content-type": "application/json; charset=UTF-8"
                     }
                 });
             }
         }
-        
+
         function emergencyStop() {
-            socket.emit("emergencyStop");            
+            socket.emit("emergencyStop");
         }
-        
+
         // Request initial robot state when page loads
         socket.emit("getInitialState");
     </script>
 </body>
+
 </html>
