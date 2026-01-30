@@ -8,6 +8,7 @@ import { setupUpdateGps, mockGpsData } from "./gps";
 import { serialize } from "v8";
 import { mockImuData } from "./imu";
 import { mockOdomData } from "./odom";
+import { mockOccupancyGridData } from "./canvas";
 
 
 // TODO: Replace with actual launch file when that launch file is written.
@@ -68,6 +69,7 @@ export function setupExpress(node: rclnodejs.Node): Application {
         mockGpsData(node);
         mockImuData(node);
         mockOdomData(node);
+        mockOccupancyGridData(node);
     }
 
     return app;

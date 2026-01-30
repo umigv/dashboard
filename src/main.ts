@@ -5,6 +5,7 @@ import { setupUpdateGps } from "./gps";
 import * as rclnodejs from "rclnodejs";
 import { setupUpdateImu } from "./imu";
 import { setupUpdateOdom } from "./odom";
+import { setupUpdateOccupancyGrid } from "./canvas";
 
 (async function () {
     await rclnodejs.init();
@@ -15,6 +16,7 @@ import { setupUpdateOdom } from "./odom";
     setupUpdateGps(node, io);
     setupUpdateImu(node,io);
     setupUpdateOdom(node,io);
+    setupUpdateOccupancyGrid(node,io);
 
     app.listen(3000, () => {
         console.log("Server is running on port 3000");

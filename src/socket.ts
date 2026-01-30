@@ -20,10 +20,18 @@ interface odom {
   velocity: number;
 }
 
+interface occupancyGrid{
+    resolution: number;
+    width: number;
+    height:number;
+    data: Int8Array;
+}
+
 interface data{
     imu:imu;
     gps:gps;
     odom: odom;
+    occupancyGrid: occupancyGrid;
 }
 
 
@@ -37,9 +45,6 @@ export function setupSocket(node: rclnodejs.Node): IO {
         pong: (message: string)=>void;
     }
 
-    // interface NamespaceSpecificClientToServerEvents {
-    //     ping:() =>void;
-    // }
 
 
     const io = new Server({
@@ -48,16 +53,11 @@ export function setupSocket(node: rclnodejs.Node): IO {
         }
     });
 
-    //const io = new Server<ServerToClientEvents> ();
 
     io.on("connection", (socket) => {
-        // socket.on("ping", (message) => {
-        //     console.log(message);
-        //     socket.emit("pong", "Pong!");
-        // });
+
         console.log("socket connected");
         handleCameraSettingsUpdate(socket, node);
-        //handleGpsUpdates(socket, node);
     });
 
 

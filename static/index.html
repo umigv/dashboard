@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -40,8 +41,133 @@
         </div>
 
         <div class="panel">
-            <h2>Camera Feed</h2>
-            <img src="/camera/" class="camera-feed">
+            <h2 id="videoFeedText">Camera Feed</h2>
+
+            <button id="switchButton" onclick="switchFeed()">Switch Feed</button>
+
+            <img id="cameraFeed" src="/camera/" class="camera-feed">
+
+            <canvas width="1920" height="1080" id="occupancyFeed" class="canvas-feed"></canvas>
+            <!-- canvas default buffer dimensions are 300x150-->
+
+            <canvas width="1920" height="1080" id="poseEstimatorFeed" class="canvas-feed"></canvas>
+
+            <script type="importmap">
+            {
+            "imports": {
+                
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+                }
+            }
+            </script>
+            <script type="module">
+                import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+                import { STLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/STLLoader.js';
+                
+                const cameraFeed = document.getElementById("cameraFeed");
+                const occupancyFeed = document.getElementById("occupancyFeed");
+                const poseEstimatorFeed = document.getElementById("poseEstimatorFeed");
+
+                cameraFeed.style.display = "block";
+                occupancyFeed.style.display = "none";
+                poseEstimatorFeed.style.display = "none";
+
+                const scene = new THREE.Scene();
+                window.threeScene = scene;
+                const dummy = new THREE.Object3D();
+                window.dummy = dummy;
+
+
+                const camera = new THREE.PerspectiveCamera(
+                    75,
+                    occupancyFeed.width / occupancyFeed.height,
+                    0.1,
+                    1000
+                );
+
+                camera.position.set(0, -60, 45);
+                camera.lookAt(0, -31, 0);
+
+                const renderer = new THREE.WebGLRenderer({
+                    canvas: occupancyFeed,
+                    antialias: true,
+                });
+                renderer.setSize(occupancyFeed.width, occupancyFeed.height, false);
+                renderer.setPixelRatio(window.devicePixelRatio);
+
+                scene.background = new THREE.Color(0xede7dd);
+                scene.add(new THREE.AmbientLight(0x404040));
+                const light = new THREE.DirectionalLight(0xffffff, 1);
+                light.position.set(0, -1, 0.5);//TODO - tune this
+                scene.add(light);
+
+                let mesh = null;
+
+                function loadObject() {
+                    const loader = new STLLoader();
+                    loader.load("/static/Maverick_Assembly_STL.stl", (geometry) => {
+                        geometry.center();
+                        const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+                        mesh = new THREE.Mesh(geometry, material);
+                        mesh.scale.setScalar(0.6);
+                        scene.add(mesh);
+                        mesh.position.set(0, -62, 0);
+                        // mesh.rotation.z = 90;
+
+                        
+                    });
+
+                    
+                }
+
+                loadObject();
+
+                const hazardColors = [
+                0x3CB371, // fresh medium green
+                0x7ED957, // vivid green
+                0xC3E877, // light lime green
+                0xFFF44F, // bright banana yellow
+                0xFFEB3B, // sunny yellow
+                0xFFB74D, // light orange
+                0xFF8A65, // peachy orange
+                0xFF6F61, // coral red-orange
+                0xFF5252, // bright red
+                0xFF1744  // vivid red
+                ];
+
+                const maxInstances = 10000;
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                const material = [];
+                window.instances = [];
+
+                for(let i = 0; i < 10;i++){
+                    material[i] = new THREE.MeshPhongMaterial({color: hazardColors[i]});
+                    window.instances[i] = new THREE.InstancedMesh(geometry, material[i], maxInstances)
+                    scene.add(window.instances[i]);
+                }
+                
+
+                
+
+                function animate() {
+                    requestAnimationFrame(animate);
+                    if (mesh) {
+                        // mesh.rotation.y += 0.01;
+                    }
+                    renderer.render(scene, camera);
+                }
+
+                animate();
+
+                const poseEstimatorContext = poseEstimatorFeed.getContext("2d");
+                poseEstimatorContext.fillStyle = "black";
+                poseEstimatorContext.fillText("Pose Estimator feed active", 20, 20);
+            </script>
+
+
+
+
 
             <div class="hardware-info">
                 <div class="speedometer" id="speedometer">
@@ -53,7 +179,7 @@
                     <div id="imuPitch">Pitch: 0.0°</div>
                     <div id="imuYaw">Yaw: 0.0°</div>
                 </div>
-                
+
                 <div class="data-box">
                     <h3>GPS Location</h3>
                     <div id="gpsLat">Lat: 0.0000° N</div>
@@ -61,8 +187,8 @@
                     <div id="gpsAlt">Alt: 0m</div>
 
                 </div>
-                
-              
+
+
             </div>
 
 
@@ -83,7 +209,19 @@
     </div>
 
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
-    <script>
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+        
+        let occupancyMeshes = [];
+
+        const feedStates = Object.freeze({
+        CAMERA_FEED: 1,
+        OCCUPANCY_FEED: 2,
+        POSE_ESTIMATOR_FEED: 3
+        });
+
+        let showingFeed = feedStates.CAMERA_FEED;
+
         // Connect to the server
         const socket = io("http://localhost:3001");
 
@@ -121,11 +259,18 @@
             updateSensorDisplays(data);
         });
 
+        socket.on("occupancyGridUpdate", (data) => {
+            console.log("height in socket", data.occupancyGrid.height)
+            if(showingFeed == 2){
+                updateOccupancyGridRender(data);
+            }
+        });
+
         socket.on("positionUpdate", (position) => {
             updateRobotPosition(position);
         });
 
-        
+
 
         // Camera control functions
         const brightnessSlider = document.getElementById('brightnessSlider');
@@ -199,7 +344,7 @@
         function updateSensorDisplays(data) {
 
 
-            if(data.odom){
+            if (data.odom) {
                 document.getElementById('speedometer').textContent = `${data.odom.velocity.toFixed(2)} Km/h`;
             }
 
@@ -207,7 +352,7 @@
 
 
                 console.log("its working?");
-                
+
                 document.getElementById('imuRoll').textContent = `Roll: ${data.imu.roll.toFixed(2)}°`;
                 document.getElementById('imuPitch').textContent = `Pitch: ${data.imu.pitch.toFixed(2)}°`;
                 document.getElementById('imuYaw').textContent = `Yaw: ${data.imu.yaw.toFixed(2)}°`;
@@ -225,7 +370,65 @@
             }
         }
 
+        function activateInstance(index, x, y, height, instanceIndex){
+            
+            // console.log(x, y);
+
+            window.dummy.position.set(x,y, height/2); 
+            window.dummy.scale.set(1, 1, height);  
+            window.dummy.updateMatrix();
+            window.instances[instanceIndex].setMatrixAt(index, dummy.matrix);
+            
+
+        }
+
+        function deactivateInstance(index, instanceIndex) {
+            window.dummy.position.set(0,0,0);
+            window.dummy.scale.set(0,0,0); 
+            window.dummy.updateMatrix();
+            window.instanced[instanceIndex].setMatrixAt(index, dummy.matrix);
+        }
+
+        function updateOccupancyGridRender(incomingData){
+
+            let occGrid = incomingData.occupancyGrid;
         
+            console.log("data length: ",occGrid.data[0]);
+
+            const offsetX = -occGrid.width / 2;
+            const offsetY = -occGrid.height / 2;
+
+            let instanceCounts = new Array(10).fill(0);
+
+            for (let i = 0; i < occGrid.data.length; i++) {
+                const value = occGrid.data[i];
+                let pillarColor = 0xFFFFFF; //low hazard by default, green
+                if(value != 0){
+                    const instanceIndex = Math.floor((value - 0.1)/10.0);
+
+                    const height = 5*(value/100.0);
+
+                    const x = (i % occGrid.width) + offsetX;
+                    const y = Math.floor(i / occGrid.width) + offsetY;
+                    activateInstance(instanceCounts[instanceIndex], x, y, height, instanceIndex);
+                    instanceCounts[instanceIndex]++;
+
+                }
+                
+            }
+
+            for(let i = 0;i < 10; i++){
+                window.instances[i].count = instanceCounts[i];
+                window.instances[i].instanceMatrix.needsUpdate = true;
+            }
+
+            console.log("meshes, scene has", window.threeScene.children.length, "children");
+
+            console.log("render complete");
+
+        }
+
+
 
         // Control functions
         function setMode(button) {
@@ -250,6 +453,52 @@
 
         function emergencyStop() {
             socket.emit("emergencyStop");
+        }
+
+        window.switchFeed = function() {
+            const switchButton = document.getElementById("switchButton");
+            videoFeedText = document.getElementById("videoFeedText");
+
+            const cameraFeed = document.getElementById("cameraFeed");
+            const occupancyFeed = document.getElementById("occupancyFeed");
+            const poseEstimatorFeed = document.getElementById("poseEstimatorFeed");
+
+
+            if (showingFeed == feedStates.CAMERA_FEED) {
+                showingFeed = feedStates.OCCUPANCY_FEED;
+
+                videoFeedText.textContent = "Occupancy Grid Feed";
+
+                cameraFeed.style.display = "none";
+                occupancyFeed.style.display = "block";
+                poseEstimatorFeed.style.display = "none";
+
+                switchButton.textContent = "Switch Feed";
+            } else if (showingFeed == feedStates.OCCUPANCY_FEED) {
+                showingFeed = feedStates.POSE_ESTIMATOR_FEED;
+
+                videoFeedText.textContent = "Pose Estimator Feed";
+
+
+                cameraFeed.style.display = "none";
+                occupancyFeed.style.display = "none";
+                poseEstimatorFeed.style.display = "block";
+
+                switchButton.textContent = "Switch Feed";
+            }
+            else if (showingFeed == feedStates.POSE_ESTIMATOR_FEED) {
+                showingFeed = feedStates.CAMERA_FEED;
+
+                videoFeedText.textContent = "Camera Feed";
+
+
+                cameraFeed.style.display = "block";
+                occupancyFeed.style.display = "none";
+                poseEstimatorFeed.style.display = "none";
+
+                switchButton.textContent = "Switch Feed";
+            }
+
         }
 
         // Request initial robot state when page loads
