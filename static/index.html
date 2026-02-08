@@ -58,13 +58,17 @@
                 
                 "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
                 "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+                
                 }
             }
             </script>
             <script type="module">
                 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
                 import { STLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/STLLoader.js';
-                
+                import { Line2 } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/lines/Line2.js';
+                import { LineMaterial } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/lines/LineMaterial.js';
+                import { LineGeometry } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/lines/LineGeometry.js';
+
                 const cameraFeed = document.getElementById("cameraFeed");
                 const occupancyFeed = document.getElementById("occupancyFeed");
                 const poseEstimatorFeed = document.getElementById("poseEstimatorFeed");
@@ -110,30 +114,30 @@
                         geometry.center();
                         const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
                         mesh = new THREE.Mesh(geometry, material);
-                        mesh.scale.setScalar(0.6);
+                        mesh.scale.setScalar(0.52);
                         scene.add(mesh);
                         mesh.position.set(0, -62, 0);
                         // mesh.rotation.z = 90;
 
-                        
+
                     });
 
-                    
+
                 }
 
                 loadObject();
 
                 const hazardColors = [
-                0x3CB371, // fresh medium green
-                0x7ED957, // vivid green
-                0xC3E877, // light lime green
-                0xFFF44F, // bright banana yellow
-                0xFFEB3B, // sunny yellow
-                0xFFB74D, // light orange
-                0xFF8A65, // peachy orange
-                0xFF6F61, // coral red-orange
-                0xFF5252, // bright red
-                0xFF1744  // vivid red
+                    0x2E8B57, // darker medium green
+                    0x5FAF45, // toned vivid green
+                    0x9FCB55, // softened lime
+                    0xD6C83A, // muted banana yellow
+                    0xD4C12E, // darker sunny yellow
+                    0xD08A3A, // toned light orange
+                    0xC46A4A, // deeper peach
+                    0xC44E42, // muted coral
+                    0xC13A3A, // toned bright red
+                    0xA80F2E  // darker vivid red
                 ];
 
                 const maxInstances = 10000;
@@ -141,14 +145,14 @@
                 const material = [];
                 window.instances = [];
 
-                for(let i = 0; i < 10;i++){
-                    material[i] = new THREE.MeshPhongMaterial({color: hazardColors[i]});
+                for (let i = 0; i < 10; i++) {
+                    material[i] = new THREE.MeshBasicMaterial({ color: hazardColors[i] });
                     window.instances[i] = new THREE.InstancedMesh(geometry, material[i], maxInstances)
                     scene.add(window.instances[i]);
                 }
-                
 
-                
+
+
 
                 function animate() {
                     requestAnimationFrame(animate);
@@ -158,11 +162,105 @@
                     renderer.render(scene, camera);
                 }
 
+
                 animate();
 
-                const poseEstimatorContext = poseEstimatorFeed.getContext("2d");
-                poseEstimatorContext.fillStyle = "black";
-                poseEstimatorContext.fillText("Pose Estimator feed active", 20, 20);
+                class EquilateralRoundedTriangleGeometry extends THREE.BufferGeometry {
+                    constructor(height, rounding) {
+                        let r = height / 3 * 2;
+                        let ha = THREE.MathUtils.degToRad(30);
+                        let h = rounding * (Math.sin(ha) + Math.cos(ha) * Math.sqrt(3));
+                        let center = r - Math.min(r, h);
+
+                        let base = new THREE.Vector2(0, center);
+                        let c = new THREE.Vector2();
+                        let v = new THREE.Vector2();
+
+                        let angleStep = Math.PI / 6;
+
+                        let shape = new THREE.Shape()
+                        for (let i = 0; i < 3; i++) {
+                            let a = angleStep * 4 * i;
+                            v.copy(base).rotateAround(c, a);
+                            shape.absarc(v.x, v.y, rounding, angleStep + a, angleStep * 5 + a);
+                        }
+
+                        let g = new THREE.ShapeGeometry(shape, 20);
+                        super().copy(g);
+                        this.center();
+                        this.rotateX(-Math.PI / 2);
+
+                        this.helper = new THREE.BufferGeometry().setFromPoints(Array.from({ length: 3 }, (_, idx) => {
+                            return new THREE.Vector2(0, r).rotateAround(new THREE.Vector2(), Math.PI * 2 / 3 * idx);
+                        }));
+                    }
+                }
+
+
+                const poseEstimatorScene = new THREE.Scene();
+                window.poseEstimatorScene = poseEstimatorScene;
+                window.poseEstimatorScene.add(new THREE.AmbientLight(0xFFFFFF));
+
+                const poseEstimatorCamera = new THREE.PerspectiveCamera(
+                    75,
+                    poseEstimatorFeed.width / poseEstimatorFeed.height,
+                    0.1,
+                    1000
+                );
+
+                window.poseEstimatorCamera = poseEstimatorCamera;
+
+                poseEstimatorCamera.position.set(0, 10, 0);
+                poseEstimatorCamera.lookAt(0, 0, 0);
+
+                const poseEstimatorRenderer = new THREE.WebGLRenderer({
+                    canvas: poseEstimatorFeed,
+                    antialias: true,
+                });
+                poseEstimatorRenderer.setSize(poseEstimatorFeed.width, poseEstimatorFeed.height, false);
+                poseEstimatorRenderer.setPixelRatio(window.devicePixelRatio);
+
+                poseEstimatorScene.background = new THREE.Color(0xede7dd);
+
+
+                let gTri = new EquilateralRoundedTriangleGeometry(.7, 0.05);
+                let mTri = new THREE.MeshBasicMaterial({
+                    color: 0x007ba7
+                });
+                let triangle = new THREE.Mesh(gTri, mTri);
+                window.headerTriangle = triangle;
+
+
+                window.poseEstimatorScene.add(window.headerTriangle);
+
+                window.headerTriangle.frustumCulled = false;
+
+                window.currentPosition = [0, 0, 0];
+                window.currentLineIndex = 0;
+
+
+                window.maxLineInstances = 200;
+                const lineGeometry = new THREE.BoxGeometry(1, 0.1, 0.1);
+                const lineMaterial = [];//make it an array to allow for expansion to multiple odom topics later
+                window.lineInstances = [];
+
+                for (let i = 0; i < 1; i++) {
+                    lineMaterial[i] = new THREE.MeshBasicMaterial({ color: 0x007ba7 });
+                    window.lineInstances[i] = new THREE.InstancedMesh(lineGeometry, lineMaterial[i], window.maxLineInstances);
+                    window.poseEstimatorScene.add(window.lineInstances[i]);
+                }
+
+
+
+                function poseEstimatorAnimate() {
+                    requestAnimationFrame(poseEstimatorAnimate);
+
+                    poseEstimatorRenderer.render(poseEstimatorScene, poseEstimatorCamera);
+                }
+
+                poseEstimatorAnimate();
+
+
             </script>
 
 
@@ -211,13 +309,13 @@
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-        
+
         let occupancyMeshes = [];
 
         const feedStates = Object.freeze({
-        CAMERA_FEED: 1,
-        OCCUPANCY_FEED: 2,
-        POSE_ESTIMATOR_FEED: 3
+            CAMERA_FEED: 1,
+            OCCUPANCY_FEED: 2,
+            POSE_ESTIMATOR_FEED: 3
         });
 
         let showingFeed = feedStates.CAMERA_FEED;
@@ -255,13 +353,13 @@
         });
 
         socket.on("odomUpdate", (data) => {
-
+            updateRobotPosition(data.odom.position);
             updateSensorDisplays(data);
         });
 
         socket.on("occupancyGridUpdate", (data) => {
             console.log("height in socket", data.occupancyGrid.height)
-            if(showingFeed == 2){
+            if (showingFeed == 2) {
                 updateOccupancyGridRender(data);
             }
         });
@@ -326,18 +424,10 @@
 
         // Update robot position on visualization
         function updateRobotPosition(position) {
-            robotState.position = position.coordinates;
-            robotState.rotation = position.rotation;
-            robotState.speed = position.speed;
 
-            // Update robot marker
-            const marker = document.getElementById('robotMarker');
-            marker.style.left = `${position.coordinates.x}px`;
-            marker.style.top = `${position.coordinates.y}px`;
-            marker.style.transform = `translate(-50%, -50%) rotate(${position.rotation}deg)`;
-
-            // Update speedometer
-            document.getElementById('speedometer').textContent = `${position.speed} km/h`;
+            robotState.position = position;
+            addLineSegment(position);
+            // window.poseEstimatorRenderer
         }
 
         // Update sensor displays
@@ -346,12 +436,10 @@
 
             if (data.odom) {
                 document.getElementById('speedometer').textContent = `${data.odom.velocity.toFixed(2)} Km/h`;
+
             }
 
             if (data.imu) {
-
-
-                console.log("its working?");
 
                 document.getElementById('imuRoll').textContent = `Roll: ${data.imu.roll.toFixed(2)}°`;
                 document.getElementById('imuPitch').textContent = `Pitch: ${data.imu.pitch.toFixed(2)}°`;
@@ -370,30 +458,28 @@
             }
         }
 
-        function activateInstance(index, x, y, height, instanceIndex){
-            
-            // console.log(x, y);
+        function activateInstance(index, x, y, height, instanceIndex) {
 
-            window.dummy.position.set(x,y, height/2); 
-            window.dummy.scale.set(1, 1, height);  
+            window.dummy.position.set(x, y, height / 2);
+            window.dummy.scale.set(1, 1, height);
+            window.dummy.rotation.set(0, 0, 0);
             window.dummy.updateMatrix();
             window.instances[instanceIndex].setMatrixAt(index, dummy.matrix);
-            
+
 
         }
 
         function deactivateInstance(index, instanceIndex) {
-            window.dummy.position.set(0,0,0);
-            window.dummy.scale.set(0,0,0); 
+            window.dummy.position.set(0, 0, 0);
+            window.dummy.scale.set(0, 0, 0);
             window.dummy.updateMatrix();
             window.instanced[instanceIndex].setMatrixAt(index, dummy.matrix);
         }
 
-        function updateOccupancyGridRender(incomingData){
+        function updateOccupancyGridRender(incomingData) {
 
             let occGrid = incomingData.occupancyGrid;
-        
-            console.log("data length: ",occGrid.data[0]);
+
 
             const offsetX = -occGrid.width / 2;
             const offsetY = -occGrid.height / 2;
@@ -402,11 +488,10 @@
 
             for (let i = 0; i < occGrid.data.length; i++) {
                 const value = occGrid.data[i];
-                let pillarColor = 0xFFFFFF; //low hazard by default, green
-                if(value != 0){
-                    const instanceIndex = Math.floor((value - 0.1)/10.0);
+                if (value != 0) {
+                    const instanceIndex = Math.floor((value - 0.1) / 10.0);
 
-                    const height = 5*(value/100.0);
+                    const height = 5 * (value / 100.0);
 
                     const x = (i % occGrid.width) + offsetX;
                     const y = Math.floor(i / occGrid.width) + offsetY;
@@ -414,21 +499,62 @@
                     instanceCounts[instanceIndex]++;
 
                 }
-                
+
             }
 
-            for(let i = 0;i < 10; i++){
+            for (let i = 0; i < 10; i++) {
                 window.instances[i].count = instanceCounts[i];
                 window.instances[i].instanceMatrix.needsUpdate = true;
             }
 
-            console.log("meshes, scene has", window.threeScene.children.length, "children");
-
-            console.log("render complete");
 
         }
 
+        function addLineSegment(incomingPosition) {
 
+
+            let diffX = incomingPosition.x - window.currentPosition.x;
+            let diffY = incomingPosition.y - window.currentPosition.y;
+            let diffZ = incomingPosition.z - window.currentPosition.z;
+
+            let linePos = [
+                window.currentPosition.x,
+                window.currentPosition.y,
+                window.currentPosition.z
+            ]
+
+            let mpX = (currentPosition.x + incomingPosition.x) * 0.5;
+            let mpZ = (currentPosition.z + incomingPosition.z) * 0.5;
+
+
+            let magnitude = Math.sqrt((diffX * diffX) + (diffZ * diffZ));
+
+            let angle = Math.atan2(diffZ, diffX);
+
+            window.dummy.position.set(mpX, 0, mpZ);
+            window.dummy.scale.set(magnitude, 1, 1);
+            window.dummy.rotation.set(0, -angle, 0);
+            window.dummy.updateMatrix();
+            window.lineInstances[0].setMatrixAt(currentLineIndex, dummy.matrix);
+            incrementLineIndex();
+
+            window.lineInstances[0].instanceMatrix.needsUpdate = true;
+            window.lineInstances[0].frustumCulled = false;
+            window.currentPosition = incomingPosition;
+
+            window.poseEstimatorCamera.position.set(mpX, 10, mpZ);
+            window.poseEstimatorCamera.lookAt(mpX, 0, mpZ);
+
+
+            window.headerTriangle.position.set(incomingPosition.x, 0, incomingPosition.z);
+            window.headerTriangle.rotation.y = -angle - (Math.PI / 2);
+
+        }
+
+        function incrementLineIndex() {
+            window.currentLineIndex++;
+            window.currentLineIndex = window.currentLineIndex % window.maxLineInstances;
+        }
 
         // Control functions
         function setMode(button) {
@@ -455,7 +581,7 @@
             socket.emit("emergencyStop");
         }
 
-        window.switchFeed = function() {
+        window.switchFeed = function () {
             const switchButton = document.getElementById("switchButton");
             videoFeedText = document.getElementById("videoFeedText");
 

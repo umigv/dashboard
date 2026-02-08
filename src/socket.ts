@@ -18,6 +18,13 @@ interface gps{
 
 interface odom {
   velocity: number;
+  position: position;
+}
+
+interface position{
+  x: number;
+  y: number;
+  z: number;
 }
 
 interface occupancyGrid{

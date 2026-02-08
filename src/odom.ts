@@ -3,7 +3,18 @@ import * as rclnodejs from "rclnodejs";
 
 interface odom {
   velocity: number;
+  position: position;
 }
+
+interface position{
+  x: number;
+  y: number;
+  z: number;
+}
+
+let posx = 0;
+let posy = 0;
+let posz = 0; 
 
 
 function gauss(mean = 0, std = 1) {
@@ -41,8 +52,9 @@ export function setupUpdateOdom(node: rclnodejs.Node, io: Server) {
 
     const speed = Math.sqrt(vx ** 2 + vy ** 2 + vz ** 2);
 
+    const position = odomData.pose.pose.position;
     io.emit("odomUpdate", {
-      odom: { velocity: speed } as odom
+      odom: { velocity: speed, position: position } as odom
     });
 
   });
@@ -83,6 +95,9 @@ export function mockOdomData(node: rclnodejs.Node) {
       z: gauss(0, 0.01)
     };
 
+    posx += Math.random()*5;
+    posz += Math.random()*5;
+
     odomPub.publish({
       header: {
         stamp: { sec, nanosec },
@@ -92,7 +107,7 @@ export function mockOdomData(node: rclnodejs.Node) {
 
       pose: {
         pose: {
-          position: { x: 0, y: 0, z: 0 },
+          position: { x: posx, y: posy, z: posz },
           orientation: orientation
         },
         covariance: new Array(36).fill(0)
