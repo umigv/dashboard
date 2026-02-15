@@ -47,7 +47,13 @@ export function mockOccupancyGridData(node: rclnodejs.Node) {
     // Generate random occupancy data (-1 = unknown, 0 = free, 100 = occupied)
     const data = [];
     for (let i = 0; i < width * height; i++) {
-        const rand = Math.random() * 100;
+        let rand = Math.random() * 100;
+        if(i < 100){
+            rand = 100;
+        }
+        if(i > width*height -50){
+            rand = 90
+        }
         data.push(rand);
     }
     

@@ -52,6 +52,8 @@
 
             <canvas width="1920" height="1080" id="poseEstimatorFeed" class="canvas-feed"></canvas>
 
+            <!-- <button id="poseEstimatorFeed" -->
+
             <script type="importmap">
             {
             "imports": {
@@ -65,9 +67,6 @@
             <script type="module">
                 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
                 import { STLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/STLLoader.js';
-                import { Line2 } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/lines/Line2.js';
-                import { LineMaterial } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/lines/LineMaterial.js';
-                import { LineGeometry } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/lines/LineGeometry.js';
 
                 const cameraFeed = document.getElementById("cameraFeed");
                 const occupancyFeed = document.getElementById("occupancyFeed");
@@ -103,7 +102,7 @@
                 scene.background = new THREE.Color(0xede7dd);
                 scene.add(new THREE.AmbientLight(0x404040));
                 const light = new THREE.DirectionalLight(0xffffff, 1);
-                light.position.set(0, -1, 0.5);//TODO - tune this
+                light.position.set(0, -1, 0.5);//having the light is necessary to properly show detail on the model
                 scene.add(light);
 
                 let mesh = null;
@@ -112,12 +111,12 @@
                     const loader = new STLLoader();
                     loader.load("/static/Maverick_Assembly_STL.stl", (geometry) => {
                         geometry.center();
-                        const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+                        const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa }); //model must be phong otherwise the texture wont really show
                         mesh = new THREE.Mesh(geometry, material);
-                        mesh.scale.setScalar(0.52);
+                        mesh.scale.setScalar(0.52); 
+                        // ^this should make it roughly to scale, assuming each cell of the occGrid is about 5cm, this should make the robot relatively to scale with the cells, margin of error because I eyeballed how big the robot was before...
                         scene.add(mesh);
-                        mesh.position.set(0, -62, 0);
-                        // mesh.rotation.z = 90;
+                        mesh.position.set(0, -60, 0);
 
 
                     });
@@ -128,19 +127,19 @@
                 loadObject();
 
                 const hazardColors = [
-                    0x2E8B57, // darker medium green
-                    0x5FAF45, // toned vivid green
-                    0x9FCB55, // softened lime
-                    0xD6C83A, // muted banana yellow
-                    0xD4C12E, // darker sunny yellow
-                    0xD08A3A, // toned light orange
-                    0xC46A4A, // deeper peach
-                    0xC44E42, // muted coral
-                    0xC13A3A, // toned bright red
-                    0xA80F2E  // darker vivid red
+                    0x247A4B, // darker subdued green
+                    0x4C8F3A, // muted medium green
+                    0x87A844, // softened olive-lime
+                    0xB8B02F, // darker muted yellow
+                    0xB6A727, // toned mustard yellow
+                    0xB27433, // muted warm orange
+                    0xA85C44, // deeper dusty peach
+                    0xA5443C, // muted brick coral
+                    0x9E3232, // toned deep red
+                    0x861024  // darker restrained crimson
                 ];
 
-                const maxInstances = 10000;
+                const maxInstances = 10000;//this will get hard trimmed, just an initial value
                 const geometry = new THREE.BoxGeometry(1, 1, 1);
                 const material = [];
                 window.instances = [];
@@ -156,9 +155,7 @@
 
                 function animate() {
                     requestAnimationFrame(animate);
-                    if (mesh) {
-                        // mesh.rotation.y += 0.01;
-                    }
+                    
                     renderer.render(scene, camera);
                 }
 
@@ -263,10 +260,6 @@
 
             </script>
 
-
-
-
-
             <div class="hardware-info">
                 <div class="speedometer" id="speedometer">
                     0 km/h
@@ -275,7 +268,8 @@
                     <h3>IMU Data</h3>
                     <div id="imuRoll">Roll: 0.0°</div>
                     <div id="imuPitch">Pitch: 0.0°</div>
-                    <div id="imuYaw">Yaw: 0.0°</div>
+                    <div id="imuYaw">
+Yaw: 0.0°</div>
                 </div>
 
                 <div class="data-box">
@@ -448,7 +442,6 @@
 
             if (data.gps) {
 
-
                 const lat_dir = data.gps.latitude >= 0 ? 'N' : 'S';
                 const long_dir = data.gps.longitude >= 0 ? 'E' : 'W';
 
@@ -493,8 +486,11 @@
 
                     const height = 5 * (value / 100.0);
 
-                    const x = (i % occGrid.width) + offsetX;
-                    const y = Math.floor(i / occGrid.width) + offsetY;
+                    //gotta do some weird rotations and reflections bc ethan informed me of some oddities in the ROS occGrid layout 😔
+                    const y = (i % occGrid.width) + offsetX;
+                    const x = (occGrid.width - Math.floor(i / occGrid.width)) + offsetY;
+
+                    
                     activateInstance(instanceCounts[instanceIndex], x, y, height, instanceIndex);
                     instanceCounts[instanceIndex]++;
 
@@ -539,7 +535,7 @@
             incrementLineIndex();
 
             window.lineInstances[0].instanceMatrix.needsUpdate = true;
-            window.lineInstances[0].frustumCulled = false;
+            window.lineInstances[0].frustumCulled = false;//if they are frustum culled, they are kind of all treated as one entity and so once one goes off screen they all get culled
             window.currentPosition = incomingPosition;
 
             window.poseEstimatorCamera.position.set(mpX, 10, mpZ);
