@@ -10,7 +10,28 @@ interface occupancyGrid{
     data: Int8Array;
 }
 
+export function setupUpdatePath(node: rclnodejs.Node, io: Server) {
 
+    node.createSubscription(
+        "nav_msgs/msg/Path",
+        "/pathData",
+        async (msgPromise) => {
+
+            const path = (await msgPromise) as rclnodejs.nav_msgs.msg.Path;
+
+            io.emit("pathUpdate", {
+                header: {
+                    frame_id: path.header.frame_id
+                },
+                poses: path.poses.map(p => ({
+                    x: p.pose.position.x,
+                    y: p.pose.position.y,
+                    z: p.pose.position.z
+                }))
+            });
+        }
+    );
+}
 
 
 export function setupUpdateOccupancyGrid(node: rclnodejs.Node, io: Server) {
@@ -92,6 +113,65 @@ export function mockOccupancyGridData(node: rclnodejs.Node) {
     }, 1000 / FRAME_RATE);
 }
 
+export function mockPathData(node: rclnodejs.Node) {
+
+    const pathPublisher = node.createPublisher(
+        "nav_msgs/msg/Path",
+        "/pathData"
+    );
+
+    const FRAME_RATE = 1;
+
+    setInterval(() => {
+
+        const numPoints = 50;
+        const poses = [];
+
+        const now = Date.now();
+        const t = now / 1000;
+
+        for (let i = 0; i < numPoints; i++) {
+
+            const x = i;
+            const z = Math.min(i, 4) * (Math.sin(i * 0.2 + t));
+
+            poses.push({
+                header: {
+                    stamp: {
+                        sec: Math.floor(now / 1000),
+                        nanosec: (now % 1000) * 1000000
+                    },
+                    frame_id: "map"
+                },
+                pose: {
+                    position: {
+                        x: x,
+                        y: 0,
+                        z: z
+                    },
+                    orientation: {
+                        x: 0.0,
+                        y: 0.0,
+                        z: 0.0,
+                        w: 1.0
+                    }
+                }
+            });
+        }
+
+        pathPublisher.publish({
+            header: {
+                stamp: {
+                    sec: Math.floor(now / 1000),
+                    nanosec: (now % 1000) * 1000000
+                },
+                frame_id: "map"
+            },
+            poses: poses
+        });
+
+    }, 1000 / FRAME_RATE);
+}
 
 // export function handleOccupancyGridRenderUpdates(grid: occupancyGrid) {
 //     const ZED_NODE = "zed_node"; // TODO: Find real zed node name
